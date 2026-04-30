@@ -48,10 +48,10 @@ export function ChatPage() {
     const sk = `${idToStr(msg.sender.nodeId)}:${idToStr(msg.sender.userId)}`;
     const rk = `${idToStr(msg.recipient.nodeId)}:${idToStr(msg.recipient.userId)}`;
     const mk = `${user.nodeId}:${user.userId}`;
-    return sk === tk || (rk === mk && sk === tk);
+    return sk === tk || (sk === mk && rk === tk);
   });
 
-  const all = [...history, ...liveMessages.filter((live) => !history.some((historic) => messageKey(historic) === messageKey(live)))];
+  const all = [...[...history].reverse(), ...liveMessages.filter((live) => !history.some((historic) => messageKey(historic) === messageKey(live)))];
 
   return (
     <Layout style={{ height: "calc(100vh - 56px - 48px)", background: "#fff", borderRadius: 8, overflow: "hidden" }}>

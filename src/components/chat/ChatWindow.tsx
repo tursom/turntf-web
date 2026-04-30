@@ -5,6 +5,7 @@ import { MessageBubble } from "./MessageBubble";
 import { MessageInput } from "./MessageInput";
 import { useAuth } from "@/hooks/useAuth";
 import { idToStr } from "@/utils/format";
+import { useUserDisplayName } from "@/hooks/useUserDisplayName";
 
 interface Props {
   messages: Message[];
@@ -16,6 +17,7 @@ interface Props {
 
 export function ChatWindow({ messages, target, onSend, connected, statusText }: Props) {
   const { user } = useAuth();
+  const { getUserDisplayName } = useUserDisplayName();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
@@ -34,7 +36,7 @@ export function ChatWindow({ messages, target, onSend, connected, statusText }: 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div style={{ padding: "12px 16px", borderBottom: "1px solid #f0f0f0", background: "#fff", fontWeight: 600 }}>
-        {idToStr(target.nodeId)}:{idToStr(target.userId)}
+        {getUserDisplayName(target)}
         {!connected && <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 12 }}>(离线)</Typography.Text>}
       </div>
       <div style={{ flex: 1, overflow: "auto", padding: "12px 0", background: "#f0f2f5" }}>
@@ -53,7 +55,7 @@ export function ChatWindow({ messages, target, onSend, connected, statusText }: 
         <div ref={bottomRef} />
       </div>
       <div style={{ padding: "12px 16px", background: "#fff", borderTop: "1px solid #f0f0f0" }}>
-        <MessageInput onSend={onSend} disabled={!connected} />
+        <MessageInput key={target ? `${target.nodeId}:${target.userId}` : "no-target"} onSend={onSend} disabled={!connected} />
       </div>
     </div>
   );

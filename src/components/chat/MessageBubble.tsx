@@ -1,6 +1,7 @@
 import { Typography } from "antd";
 import type { Message } from "@/types";
-import { formatBytes, formatRelativeTime, idToStr } from "@/utils/format";
+import { formatBytes, formatRelativeTime } from "@/utils/format";
+import { useUserDisplayName } from "@/hooks/useUserDisplayName";
 
 interface Props {
   message: Message;
@@ -9,12 +10,13 @@ interface Props {
 }
 
 export function MessageBubble({ message, isOwn, showSender }: Props) {
+  const { getUserDisplayName } = useUserDisplayName();
   const bodyText = formatBytes(message.body);
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: isOwn ? "flex-end" : "flex-start", marginBottom: 12, padding: "0 16px" }}>
       {showSender && !isOwn && (
         <Typography.Text type="secondary" style={{ fontSize: 12, marginBottom: 2 }}>
-          {message.sender ? `${idToStr(message.sender.nodeId)}:${idToStr(message.sender.userId)}` : "系统"}
+          {message.sender ? getUserDisplayName(message.sender) : "系统"}
         </Typography.Text>
       )}
       <div style={{

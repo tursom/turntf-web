@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Input, Button, Space } from "antd";
+import type { InputRef } from "antd";
 import { SendOutlined } from "@ant-design/icons";
 
 interface Props {
@@ -10,6 +11,13 @@ interface Props {
 export function MessageInput({ onSend, disabled }: Props) {
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
+  const inputRef = useRef<InputRef>(null);
+
+  useEffect(() => {
+    if (!sending && !disabled) {
+      inputRef.current?.focus();
+    }
+  }, [sending, disabled]);
 
   const handleSend = async () => {
     const trimmed = text.trim();
@@ -26,6 +34,8 @@ export function MessageInput({ onSend, disabled }: Props) {
   return (
     <Space.Compact style={{ width: "100%" }}>
       <Input
+        ref={inputRef}
+        autoFocus
         value={text}
         onChange={(e) => setText(e.target.value)}
         onPressEnter={handleSend}

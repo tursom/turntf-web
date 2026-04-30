@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
-import { List, Typography, Badge, Button, Space, Segmented } from "antd";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { List, Typography, Badge, Button, Space, Segmented, Spin, Empty } from "antd";
 import { PlusOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
 import type { UserRef } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
@@ -7,10 +7,10 @@ import { useChat } from "@/hooks/useChat";
 import { listSubscriptions } from "@/api/subscriptions";
 import { formatBytes, idToStr, formatRelativeTime } from "@/utils/format";
 import { ContactPicker } from "./ContactPicker";
+import { useUserDisplayName } from "@/hooks/useUserDisplayName";
 
 interface Conversation {
   target: UserRef;
-  name: string;
   isChannel: boolean;
   lastTime?: string;
   lastPreview?: string;
@@ -24,17 +24,44 @@ interface Props {
 export function ConversationList({ onSelect, selectedTarget }: Props) {
   const { token, user } = useAuth();
   const { messages, connected } = useChat();
+  const { getUserDisplayName } = useUserDisplayName();
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loadingSubs, setLoadingSubs] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "users" | "channels">("all");
 
+  const storageKey = useMemo(() => {
+    if (!user) return null;
+    return `turntf_conversations_${user.nodeId}_${user.userId}`;
+  }, [user]);
+
+  useEffect(() => {
+    if (!storageKey) return;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setConversations(parsed);
+          setLoadingSubs(false);
+        }
+      }
+    } catch {}
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (storageKey && conversations.length > 0) {
+      localStorage.setItem(storageKey, JSON.stringify(conversations));
+    }
+  }, [conversations, storageKey]);
+
   useEffect(() => {
     if (!token || !user) return;
+    setLoadingSubs(true);
     listSubscriptions(token, user.nodeId, user.userId)
       .then((subs) => {
         const chs: Conversation[] = subs.map((s) => ({
           target: s.channel,
-          name: `${idToStr(s.channel.nodeId)}:${idToStr(s.channel.userId)}`,
           isChannel: true,
         }));
         setConversations((prev) => {
@@ -42,7 +69,8 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
           return [...prev, ...chs.filter((c) => !keys.has(`${c.target.nodeId}:${c.target.userId}`))];
         });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoadingSubs(false));
   }, [token, user]);
 
   useEffect(() => {
@@ -61,7 +89,7 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
         const [nid, uid] = key.split(":");
         const existing = copy.find((c) => `${c.target.nodeId}` === nid && `${c.target.userId}` === uid);
         if (existing) { existing.lastTime = info.time; existing.lastPreview = info.preview; }
-        else copy.push({ target: { nodeId: nid, userId: uid }, name: key, isChannel: false, lastTime: info.time, lastPreview: info.preview });
+        else copy.push({ target: { nodeId: nid, userId: uid }, isChannel: false, lastTime: info.time, lastPreview: info.preview });
       }
       copy.sort((a, b) => { if (!a.lastTime) return 1; if (!b.lastTime) return -1; return b.lastTime.localeCompare(a.lastTime); });
       return copy;
@@ -73,7 +101,7 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
     setConversations((prev) => {
       const exists = prev.find((c) => `${c.target.nodeId}` === `${target.nodeId}` && `${c.target.userId}` === `${target.userId}`);
       if (exists) return prev;
-      return [{ target, name: `${idToStr(target.nodeId)}:${idToStr(target.userId)}`, isChannel: false }, ...prev];
+      return [{ target, isChannel: false }, ...prev];
     });
   }, [onSelect]);
 
@@ -95,6 +123,15 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
           options={[{ label: "全部", value: "all" }, { label: "用户", value: "users" }, { label: "频道", value: "channels" }]} />
       </div>
       <div style={{ flex: 1, overflow: "auto" }}>
+        {loadingSubs ? (
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
+            <Spin tip="加载会话..." />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
+            <Empty description="暂无会话，点击下方「新会话」开始聊天" />
+          </div>
+        ) : (
         <List dataSource={filtered} split={false} renderItem={(c) => {
           const key = `${c.target.nodeId}:${c.target.userId}`;
           const selected = selectedTarget ? `${selectedTarget.nodeId}:${selectedTarget.userId}` === key : false;
@@ -103,7 +140,7 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
               <Space>
                 {c.isChannel ? <TeamOutlined /> : <UserOutlined />}
                 <div>
-                  <Typography.Text strong={selected} style={{ fontSize: 14 }}>{c.isChannel ? "# " : ""}{c.name}</Typography.Text>
+                  <Typography.Text strong={selected} style={{ fontSize: 14 }}>{c.isChannel ? "# " : ""}{getUserDisplayName(c.target)}</Typography.Text>
                   {c.lastPreview && <Typography.Paragraph type="secondary" style={{ margin: 0, fontSize: 12 }} ellipsis={{ rows: 1 }}>{c.lastPreview}</Typography.Paragraph>}
                 </div>
               </Space>
@@ -111,6 +148,7 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
             </div>
           );
         }} />
+      )}
       </div>
       <div style={{ padding: "8px 12px", borderTop: "1px solid #f0f0f0" }}>
         <Button type="dashed" icon={<PlusOutlined />} block onClick={() => setPickerOpen(true)}>新会话</Button>
