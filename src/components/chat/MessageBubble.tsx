@@ -14,7 +14,7 @@ export function MessageBubble({ message, isOwn, showSender }: Props) {
     <div style={{ display: "flex", flexDirection: "column", alignItems: isOwn ? "flex-end" : "flex-start", marginBottom: 12, padding: "0 16px" }}>
       {showSender && !isOwn && (
         <Typography.Text type="secondary" style={{ fontSize: 12, marginBottom: 2 }}>
-          {message.sender ? `${idToStr(message.sender.node_id)}:${idToStr(message.sender.user_id)}` : "系统"}
+          {message.sender ? `${idToStr(message.sender.nodeId)}:${idToStr(message.sender.userId)}` : "系统"}
         </Typography.Text>
       )}
       <div style={{
@@ -25,7 +25,7 @@ export function MessageBubble({ message, isOwn, showSender }: Props) {
         {bodyText}
       </div>
       <Typography.Text type="secondary" style={{ fontSize: 11, marginTop: 2 }}>
-        {formatRelativeTime(message.created_at)}
+        {formatRelativeTime(message.createdAtHlc)}
       </Typography.Text>
     </div>
   );

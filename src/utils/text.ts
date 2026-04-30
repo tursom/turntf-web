@@ -6,6 +6,21 @@ export function decodeText(bytes: Uint8Array): string {
   return new TextDecoder().decode(bytes);
 }
 
+export function jsonToBytes(value: unknown): Uint8Array {
+  return encodeText(JSON.stringify(value ?? {}));
+}
+
+export function tryParseJsonBytes(bytes: Uint8Array): unknown | null {
+  if (bytes.length === 0) {
+    return null;
+  }
+  try {
+    return JSON.parse(decodeText(bytes));
+  } catch {
+    return null;
+  }
+}
+
 export function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
   for (let i = 0; i < bytes.length; i++) {

@@ -37,31 +37,31 @@ export function DashboardPage() {
           <Card><Statistic title="集群节点数" value={nodes.length} prefix={<ClusterOutlined />} /></Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card><Statistic title="最新事件序号" value={ops?.last_event_sequence ?? "-"}
+          <Card><Statistic title="最新事件序号" value={ops?.lastEventSequence ?? "-"}
             prefix={<FileTextOutlined />} /></Card>
         </Col>
         <Col xs={24} sm={12} md={6}>
-          <Card><Statistic title="冲突总数" value={ops?.conflict_total ?? 0} prefix={<SyncOutlined />} /></Card>
+          <Card><Statistic title="冲突总数" value={ops?.conflictTotal ?? 0} prefix={<SyncOutlined />} /></Card>
         </Col>
       </Row>
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} sm={8}>
-          <Card><Statistic title="写入门控" value={ops?.write_gate_ready ? "就绪" : "关闭"}
-            valueStyle={{ color: ops?.write_gate_ready ? "#52c41a" : "#ff4d4f" }} /></Card>
+          <Card><Statistic title="写入门控" value={ops?.writeGateReady ? "就绪" : "关闭"}
+            valueStyle={{ color: ops?.writeGateReady ? "#52c41a" : "#ff4d4f" }} /></Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card><Statistic title="消息窗口" value={ops?.message_window_size ?? "-"} /></Card>
+          <Card><Statistic title="消息窗口" value={ops?.messageWindowSize ?? "-"} /></Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card><Statistic title="消息修剪总数" value={ops?.message_trim?.trimmed_total ?? 0} /></Card>
+          <Card><Statistic title="消息修剪总数" value={ops?.messageTrim?.trimmedTotal ?? 0} /></Card>
         </Col>
       </Row>
       <Card title="对端状态" style={{ marginTop: 16 }}>
-        <Table dataSource={ops?.peers ?? []} rowKey="peer_node_id" pagination={false}
+        <Table dataSource={ops?.peers ?? []} rowKey="nodeId" pagination={false}
           columns={[
-            { title: "节点 ID", dataIndex: "peer_node_id", render: idToStr },
-            { title: "状态", dataIndex: "status", render: (s: string) => <Tag color={s === "connected" ? "success" : "error"}>{s}</Tag> },
-            { title: "URL", dataIndex: "configured_url", ellipsis: true },
+            { title: "节点 ID", dataIndex: "nodeId", render: idToStr },
+            { title: "状态", dataIndex: "connected", render: (connected: boolean) => <Tag color={connected ? "success" : "error"}>{connected ? "connected" : "disconnected"}</Tag> },
+            { title: "URL", dataIndex: "configuredUrl", ellipsis: true },
             { title: "来源", dataIndex: "source" },
           ]} />
       </Card>

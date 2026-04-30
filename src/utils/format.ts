@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import type { Message } from "@tursom/turntf-web-sdk";
 
 export function formatTime(hlcTimestamp: string): string {
   if (!hlcTimestamp) return "-";
@@ -38,4 +39,12 @@ export function idToStr(id: number | string): string {
 
 export function userKeyStr(nodeId: number | string, userId: number | string): string {
   return `${idToStr(nodeId)}:${idToStr(userId)}`;
+}
+
+export function messageKeyStr(nodeId: number | string, seq: number | string): string {
+  return `${idToStr(nodeId)}:${idToStr(seq)}`;
+}
+
+export function messageKey(message: Pick<Message, "nodeId" | "seq">): string {
+  return messageKeyStr(message.nodeId, message.seq);
 }

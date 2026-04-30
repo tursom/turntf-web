@@ -3,7 +3,8 @@ import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
-import { listMessagesByUser } from "@/api/messages";
+import { listMessages } from "@/api/messages";
+import type { Message } from "@/types";
 import { formatTime, formatBytes, idToStr } from "@/utils/format";
 import { REFETCH_INTERVALS } from "@/utils/constants";
 
@@ -14,7 +15,7 @@ export function MessageListPage() {
 
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ["messages", nodeId, userId],
-    queryFn: () => listMessagesByUser(token!, nodeId!, userId!),
+    queryFn: () => listMessages(token!, nodeId!, userId!),
     enabled: !!token && !!nodeId && !!userId,
     refetchInterval: REFETCH_INTERVALS.Messages,
   });
@@ -23,16 +24,16 @@ export function MessageListPage() {
     <div>
       <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>返回</Button>
       <Card title={`消息列表 (${idToStr(nodeId ?? "")}:${idToStr(userId ?? "")})`}>
-        <Table dataSource={messages} rowKey={(r) => `${r.node_id}-${r.seq}`} loading={isLoading}
+        <Table<Message> dataSource={messages} rowKey={(record) => `${record.nodeId}-${record.seq}`} loading={isLoading}
           columns={[
             { title: "序号", dataIndex: "seq", render: idToStr, width: 80 },
-            { title: "发送者", key: "sender", render: (_: any, r: any) => `${idToStr(r.sender.node_id)}:${idToStr(r.sender.user_id)}`, width: 160 },
-            { title: "内容", dataIndex: "body", render: (b: number[]) => {
+            { title: "发送者", key: "sender", render: (_: unknown, record: Message) => `${idToStr(record.sender.nodeId)}:${idToStr(record.sender.userId)}`, width: 160 },
+            { title: "内容", dataIndex: "body", render: (b: Uint8Array) => {
               const t = formatBytes(b);
               if (t.startsWith("[二进制")) return <Typography.Text code>{t}</Typography.Text>;
               return <Typography.Paragraph ellipsis={{ rows: 2, expandable: true, symbol: "展开" }} style={{ margin: 0 }}>{t}</Typography.Paragraph>;
             }},
-            { title: "时间", dataIndex: "created_at", render: formatTime, width: 180 },
+            { title: "时间", dataIndex: "createdAtHlc", render: formatTime, width: 180 },
           ]}
           pagination={{ pageSize: 20, showTotal: (t) => `共 ${t} 条消息` }} />
       </Card>

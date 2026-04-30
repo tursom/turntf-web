@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { listEvents } from "@/api/events";
 import { formatTime, idToStr } from "@/utils/format";
 import { REFETCH_INTERVALS } from "@/utils/constants";
+import { tryParseJsonBytes } from "@/utils/text";
 import { useState } from "react";
 import type { Event } from "@/types";
 
@@ -27,21 +28,21 @@ export function EventLogPage() {
       <Card>
         <Table
           dataSource={events}
-          rowKey="event_id"
+          rowKey="eventId"
           loading={isLoading}
           columns={[
-            { title: "序号", dataIndex: "sequence", render: (v: number) => idToStr(v), width: 100 },
-            { title: "事件类型", dataIndex: "event_type", width: 160 },
+            { title: "序号", dataIndex: "sequence", render: (v: string) => idToStr(v), width: 100 },
+            { title: "事件类型", dataIndex: "eventType", width: 160 },
             { title: "聚合类型", dataIndex: "aggregate", width: 120 },
             {
               title: "聚合 ID",
               key: "aggId",
               render: (_: unknown, r: Event) =>
-                `${idToStr(r.aggregate_node_id)}:${idToStr(r.aggregate_id)}`,
+                `${idToStr(r.aggregateNodeId)}:${idToStr(r.aggregateId)}`,
               width: 160,
             },
             { title: "HLC", dataIndex: "hlc", render: formatTime, width: 180 },
-            { title: "来源节点", dataIndex: "origin_node_id", render: idToStr, width: 100 },
+            { title: "来源节点", dataIndex: "originNodeId", render: idToStr, width: 100 },
             {
               title: "详情", width: 80,
               render: (_: unknown, record: Event) => (
@@ -57,15 +58,15 @@ export function EventLogPage() {
           <Paragraph>
             <pre style={{ maxHeight: 400, overflow: "auto", background: "#f5f5f5", padding: 12, borderRadius: 4 }}>
               {JSON.stringify({
-                event_id: detailEvent.event_id,
-                event_type: detailEvent.event_type,
+                eventId: detailEvent.eventId,
+                eventType: detailEvent.eventType,
                 aggregate: detailEvent.aggregate,
-                aggregate_node_id: idToStr(detailEvent.aggregate_node_id),
-                aggregate_id: idToStr(detailEvent.aggregate_id),
+                aggregateNodeId: idToStr(detailEvent.aggregateNodeId),
+                aggregateId: idToStr(detailEvent.aggregateId),
                 sequence: idToStr(detailEvent.sequence),
                 hlc: detailEvent.hlc,
-                origin_node_id: idToStr(detailEvent.origin_node_id),
-                event: detailEvent.event,
+                originNodeId: idToStr(detailEvent.originNodeId),
+                event: tryParseJsonBytes(detailEvent.eventJson) ?? "[二进制数据]",
               }, null, 2)}
             </pre>
           </Paragraph>

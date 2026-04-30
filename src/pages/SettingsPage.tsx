@@ -5,7 +5,7 @@ import { updateUser } from "@/api/users";
 import { useState } from "react";
 
 export function SettingsPage() {
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, refreshRealtimePassword } = useAuth();
   const [changingPwd, setChangingPwd] = useState(false);
   const [form] = Form.useForm();
 
@@ -13,15 +13,21 @@ export function SettingsPage() {
 
   const handleChangePassword = async (values: { newPassword: string }) => {
     if (!token) return;
-    try { await updateUser(token, user.node_id, user.user_id, { password: values.newPassword }); message.success("密码修改成功"); setChangingPwd(false); form.resetFields(); }
+    try {
+      await updateUser(token, user.nodeId, user.userId, { password: values.newPassword });
+      refreshRealtimePassword(values.newPassword);
+      message.success("密码修改成功");
+      setChangingPwd(false);
+      form.resetFields();
+    }
     catch (e) { message.error(e instanceof Error ? e.message : "修改密码失败"); }
   };
 
   return (
     <Card title="个人设置" style={{ maxWidth: 600 }}>
       <Descriptions column={1} bordered style={{ marginBottom: 24 }}>
-        <Descriptions.Item label="节点 ID">{user.node_id}</Descriptions.Item>
-        <Descriptions.Item label="用户 ID">{user.user_id}</Descriptions.Item>
+        <Descriptions.Item label="节点 ID">{user.nodeId}</Descriptions.Item>
+        <Descriptions.Item label="用户 ID">{user.userId}</Descriptions.Item>
         <Descriptions.Item label="用户名">{user.username}</Descriptions.Item>
         <Descriptions.Item label="角色">
           <Tag color={user.role === "admin" || user.role === "super_admin" ? "red" : "blue"}>{user.role}</Tag>

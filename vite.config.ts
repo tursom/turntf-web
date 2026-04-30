@@ -7,6 +7,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@tursom/turntf-web-sdk": path.resolve(__dirname, "../../sdk/turntf-web-sdk/src/index.ts"),
     },
   },
   server: {
@@ -14,9 +15,11 @@ export default defineConfig({
     port: 5173,
     allowedHosts: true,
     proxy: {
+      // 开发模式下 /api 同时承载 HTTP 和 WebSocket 代理。
       "/api": {
         target: "http://localhost:8080",
         changeOrigin: true,
+        ws: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },

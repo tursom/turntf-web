@@ -1,16 +1,5 @@
-import { getApiUrl } from "./client";
-
-function authHeaders(token: string): Record<string, string> {
-  return {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
-}
+import { getHTTPClient } from "./client";
 
 export async function getMetrics(token: string): Promise<string> {
-  const resp = await fetch(`${getApiUrl()}/metrics`, {
-    headers: authHeaders(token),
-  });
-  if (!resp.ok) throw new Error(await resp.text());
-  return resp.text();
+  return getHTTPClient().metrics(token);
 }

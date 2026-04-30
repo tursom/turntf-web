@@ -41,14 +41,14 @@ export function UserDetailPage() {
         </Space>}>
         {user && (
           <Descriptions column={2} bordered>
-            <Descriptions.Item label="节点 ID">{idToStr(user.node_id)}</Descriptions.Item>
-            <Descriptions.Item label="用户 ID">{idToStr(user.user_id)}</Descriptions.Item>
+            <Descriptions.Item label="节点 ID">{idToStr(user.nodeId)}</Descriptions.Item>
+            <Descriptions.Item label="用户 ID">{idToStr(user.userId)}</Descriptions.Item>
             <Descriptions.Item label="用户名">{user.username}</Descriptions.Item>
             <Descriptions.Item label="角色"><Tag color={rc[user.role] ?? "default"}>{user.role}</Tag></Descriptions.Item>
-            <Descriptions.Item label="系统保留">{user.system_reserved ? "是" : "否"}</Descriptions.Item>
-            <Descriptions.Item label="来源节点">{idToStr(user.origin_node_id)}</Descriptions.Item>
-            <Descriptions.Item label="创建时间">{formatTime(user.created_at)}</Descriptions.Item>
-            <Descriptions.Item label="更新时间">{formatTime(user.updated_at)}</Descriptions.Item>
+            <Descriptions.Item label="系统保留">{user.systemReserved ? "是" : "否"}</Descriptions.Item>
+            <Descriptions.Item label="来源节点">{idToStr(user.originNodeId)}</Descriptions.Item>
+            <Descriptions.Item label="创建时间">{formatTime(user.createdAt)}</Descriptions.Item>
+            <Descriptions.Item label="更新时间">{formatTime(user.updatedAt)}</Descriptions.Item>
           </Descriptions>
         )}
       </Card>

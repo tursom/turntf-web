@@ -1,13 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { List, Typography, Badge, Button, Space, Segmented } from "antd";
 import { PlusOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
-import { decodeBytes } from "@tursom/turntf-web-sdk";
 import type { UserRef } from "@/types";
-import { AttachmentType } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
-import { listAttachments } from "@/api/attachments";
-import { idToStr, formatRelativeTime } from "@/utils/format";
+import { listSubscriptions } from "@/api/subscriptions";
+import { formatBytes, idToStr, formatRelativeTime } from "@/utils/format";
 import { ContactPicker } from "./ContactPicker";
 
 interface Conversation {
@@ -32,16 +30,16 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
 
   useEffect(() => {
     if (!token || !user) return;
-    listAttachments(token, user.node_id, user.user_id, AttachmentType.ChannelSubscription)
+    listSubscriptions(token, user.nodeId, user.userId)
       .then((subs) => {
         const chs: Conversation[] = subs.map((s) => ({
-          target: s.subject,
-          name: `${idToStr(s.subject.node_id)}:${idToStr(s.subject.user_id)}`,
+          target: s.channel,
+          name: `${idToStr(s.channel.nodeId)}:${idToStr(s.channel.userId)}`,
           isChannel: true,
         }));
         setConversations((prev) => {
-          const keys = new Set(prev.map((c) => `${c.target.node_id}:${c.target.user_id}`));
-          return [...prev, ...chs.filter((c) => !keys.has(`${c.target.node_id}:${c.target.user_id}`))];
+          const keys = new Set(prev.map((c) => `${c.target.nodeId}:${c.target.userId}`));
+          return [...prev, ...chs.filter((c) => !keys.has(`${c.target.nodeId}:${c.target.userId}`))];
         });
       })
       .catch(() => {});
@@ -51,19 +49,19 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
     if (messages.length === 0 || !user) return;
     const newKeys = new Map<string, { time: string; preview: string }>();
     for (const msg of messages) {
-      const isFromMe = idToStr(msg.sender.node_id) === user.node_id && idToStr(msg.sender.user_id) === user.user_id;
+      const isFromMe = idToStr(msg.sender.nodeId) === user.nodeId && idToStr(msg.sender.userId) === user.userId;
       const peer = isFromMe ? msg.recipient : msg.sender;
-      const key = `${peer.node_id}:${peer.user_id}`;
-      const preview = decodeBytes(msg.body);
-      newKeys.set(key, { time: msg.created_at, preview: preview.slice(0, 50) });
+      const key = `${peer.nodeId}:${peer.userId}`;
+      const preview = formatBytes(msg.body);
+      newKeys.set(key, { time: msg.createdAtHlc, preview: preview.slice(0, 50) });
     }
     setConversations((prev) => {
       const copy = [...prev];
       for (const [key, info] of newKeys) {
         const [nid, uid] = key.split(":");
-        const existing = copy.find((c) => `${c.target.node_id}` === nid && `${c.target.user_id}` === uid);
+        const existing = copy.find((c) => `${c.target.nodeId}` === nid && `${c.target.userId}` === uid);
         if (existing) { existing.lastTime = info.time; existing.lastPreview = info.preview; }
-        else copy.push({ target: { node_id: Number(nid), user_id: Number(uid) }, name: key, isChannel: false, lastTime: info.time, lastPreview: info.preview });
+        else copy.push({ target: { nodeId: nid, userId: uid }, name: key, isChannel: false, lastTime: info.time, lastPreview: info.preview });
       }
       copy.sort((a, b) => { if (!a.lastTime) return 1; if (!b.lastTime) return -1; return b.lastTime.localeCompare(a.lastTime); });
       return copy;
@@ -73,9 +71,9 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
   const handleNew = useCallback((target: UserRef) => {
     onSelect(target);
     setConversations((prev) => {
-      const exists = prev.find((c) => `${c.target.node_id}` === `${target.node_id}` && `${c.target.user_id}` === `${target.user_id}`);
+      const exists = prev.find((c) => `${c.target.nodeId}` === `${target.nodeId}` && `${c.target.userId}` === `${target.userId}`);
       if (exists) return prev;
-      return [{ target, name: `${idToStr(target.node_id)}:${idToStr(target.user_id)}`, isChannel: false }, ...prev];
+      return [{ target, name: `${idToStr(target.nodeId)}:${idToStr(target.userId)}`, isChannel: false }, ...prev];
     });
   }, [onSelect]);
 
@@ -98,8 +96,8 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
       </div>
       <div style={{ flex: 1, overflow: "auto" }}>
         <List dataSource={filtered} split={false} renderItem={(c) => {
-          const key = `${c.target.node_id}:${c.target.user_id}`;
-          const selected = selectedTarget ? `${selectedTarget.node_id}:${selectedTarget.user_id}` === key : false;
+          const key = `${c.target.nodeId}:${c.target.userId}`;
+          const selected = selectedTarget ? `${selectedTarget.nodeId}:${selectedTarget.userId}` === key : false;
           return (
             <div onClick={() => onSelect(c.target)} style={{ padding: "10px 12px", cursor: "pointer", background: selected ? "#e6f4ff" : "transparent", borderBottom: "1px solid #f5f5f5" }}>
               <Space>

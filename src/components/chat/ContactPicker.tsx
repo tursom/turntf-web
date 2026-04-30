@@ -23,7 +23,11 @@ export function ContactPicker({ open, onClose, onSelect }: Props) {
     setLoading(true);
     try {
       const all = await listUsers(token);
-      setUsers(all.filter((u) => u.username.toLowerCase().includes(value.toLowerCase())).map((u) => ({ node_id: u.node_id, user_id: u.user_id })));
+      setUsers(
+        all
+          .filter((candidate) => candidate.username.toLowerCase().includes(value.toLowerCase()))
+          .map((candidate) => ({ nodeId: candidate.nodeId, userId: candidate.userId }))
+      );
     } catch { message.error("搜索用户失败"); }
     finally { setLoading(false); }
   };
@@ -34,7 +38,7 @@ export function ContactPicker({ open, onClose, onSelect }: Props) {
       <List dataSource={users} loading={loading} locale={{ emptyText: search ? "未找到用户" : "输入关键词搜索" }}
         renderItem={(u) => (
           <List.Item style={{ cursor: "pointer" }} onClick={() => { onSelect(u); onClose(); }}>
-            <Typography.Text>{idToStr(u.node_id)}:{idToStr(u.user_id)}</Typography.Text>
+            <Typography.Text>{idToStr(u.nodeId)}:{idToStr(u.userId)}</Typography.Text>
           </List.Item>
         )} />
     </Modal>

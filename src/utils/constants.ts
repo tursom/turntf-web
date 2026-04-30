@@ -26,6 +26,7 @@ export const ROUTES = {
 export const STORAGE_KEYS = {
   Token: "turntf_auth_token",
   User: "turntf_auth_user",
+  RealtimePassword: "turntf_realtime_password",
 } as const;
 
 export const REFETCH_INTERVALS = {

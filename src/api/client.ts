@@ -1,16 +1,20 @@
-import { TurntfWebClient } from "@tursom/turntf-web-sdk";
-import { getApiBaseUrl } from "@/config";
+import { HTTPClient } from "@tursom/turntf-web-sdk";
+import { getApiBaseUrl, getRealtimeBaseUrl } from "@/config";
 
-let client: TurntfWebClient | null = null;
+let client: HTTPClient | null = null;
 
 export function getApiUrl(): string {
   return getApiBaseUrl();
 }
 
-export function getTurntfWebClient(): TurntfWebClient {
+export function getRealtimeUrl(): string {
+  return getRealtimeBaseUrl();
+}
+
+export function getHTTPClient(): HTTPClient {
   if (client) {
     return client;
   }
-  client = new TurntfWebClient({ baseUrl: getApiUrl() });
+  client = new HTTPClient(getApiUrl());
   return client;
 }

@@ -33,9 +33,9 @@ export function UserListPage() {
     finally { setCreating(false); }
   };
 
-  const handleDelete = async (nid: number, uid: number) => {
+  const handleDelete = async (nodeId: string, userId: string) => {
     if (!token) return;
-    try { await deleteUser(token, idToStr(nid), idToStr(uid)); message.success("已删除"); queryClient.invalidateQueries({ queryKey: ["users"] }); }
+    try { await deleteUser(token, nodeId, userId); message.success("已删除"); queryClient.invalidateQueries({ queryKey: ["users"] }); }
     catch (e) { message.error(e instanceof Error ? e.message : "删除失败"); }
   };
 
@@ -48,17 +48,17 @@ export function UserListPage() {
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>新建用户</Button>
       </div>
       <Card>
-        <Table dataSource={users} rowKey={(r) => `${r.node_id}:${r.user_id}`} loading={isLoading}
+        <Table dataSource={users} rowKey={(record) => `${record.nodeId}:${record.userId}`} loading={isLoading}
           columns={[
-            { title: "节点 ID", dataIndex: "node_id", render: idToStr, width: 120 },
-            { title: "用户 ID", dataIndex: "user_id", render: idToStr, width: 120 },
+            { title: "节点 ID", dataIndex: "nodeId", render: idToStr, width: 120 },
+            { title: "用户 ID", dataIndex: "userId", render: idToStr, width: 120 },
             { title: "用户名", dataIndex: "username" },
             { title: "角色", dataIndex: "role", render: (r: string) => <Tag color={roleColors[r] ?? "default"}>{r}</Tag>, width: 120 },
-            { title: "操作", width: 200, render: (_: unknown, r: { node_id: number; user_id: number }) => (
+            { title: "操作", width: 200, render: (_: unknown, record: { nodeId: string; userId: string }) => (
               <Space>
-                <Button size="small" icon={<EyeOutlined />} onClick={() => navigate(`/admin/users/${idToStr(r.node_id)}/${idToStr(r.user_id)}`)}>详情</Button>
-                <Button size="small" icon={<MessageOutlined />} onClick={() => navigate(`/admin/messages/${idToStr(r.node_id)}/${idToStr(r.user_id)}`)}>消息</Button>
-                <Popconfirm title="确认删除此用户？" onConfirm={() => handleDelete(r.node_id, r.user_id)}>
+                <Button size="small" icon={<EyeOutlined />} onClick={() => navigate(`/admin/users/${idToStr(record.nodeId)}/${idToStr(record.userId)}`)}>详情</Button>
+                <Button size="small" icon={<MessageOutlined />} onClick={() => navigate(`/admin/messages/${idToStr(record.nodeId)}/${idToStr(record.userId)}`)}>消息</Button>
+                <Popconfirm title="确认删除此用户？" onConfirm={() => handleDelete(record.nodeId, record.userId)}>
                   <Button size="small" danger icon={<DeleteOutlined />} />
                 </Popconfirm>
               </Space>

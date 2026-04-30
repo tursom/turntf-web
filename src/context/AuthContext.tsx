@@ -1,13 +1,14 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import { hashedPassword } from "@tursom/turntf-web-sdk";
 import { isAdminRole, STORAGE_KEYS } from "@/utils/constants";
-import { login as apiLogin, type LoginResponse } from "@/api/auth";
-
-export interface AuthUser {
-  node_id: string;
-  user_id: string;
-  username: string;
-  role: string;
-}
+import { login as apiLogin } from "@/api/auth";
+import {
+  clearRealtimePassword,
+  createRealtimePassword,
+  hasRealtimePassword,
+  storeRealtimePassword
+} from "@/utils/realtimeCredentials";
+import type { AuthUser, LoginResult } from "@/types";
 
 export interface AuthState {
   token: string | null;
@@ -17,13 +18,17 @@ export interface AuthState {
 }
 
 export interface AuthContextValue extends AuthState {
-  login: (nodeId: string, userId: string, password: string) => Promise<LoginResponse>;
+  login: (nodeId: string, userId: string, password: string) => Promise<LoginResult>;
   logout: () => void;
+  refreshRealtimePassword: (password: string) => void;
+  realtimeCredentialAvailable: boolean;
+  realtimeCredentialVersion: number;
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [realtimeCredentialVersion, setRealtimeCredentialVersion] = useState(0);
   const [state, setState] = useState<AuthState>({
     token: null,
     user: null,
@@ -36,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const userStr = localStorage.getItem(STORAGE_KEYS.User);
     if (token && userStr) {
       try {
-        const user: AuthUser = JSON.parse(userStr);
+        const user = normalizeStoredUser(JSON.parse(userStr));
         setState({
           token,
           user,
@@ -53,16 +58,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback(
-    async (nodeId: string, userId: string, password: string): Promise<LoginResponse> => {
+    async (nodeId: string, userId: string, password: string): Promise<LoginResult> => {
       const resp = await apiLogin(nodeId, userId, password);
-      const user: AuthUser = {
-        node_id: resp.user.node_id,
-        user_id: resp.user.user_id,
-        username: resp.user.username,
-        role: resp.user.role,
-      };
+      const user: AuthUser = resp.user;
       localStorage.setItem(STORAGE_KEYS.Token, resp.token);
       localStorage.setItem(STORAGE_KEYS.User, JSON.stringify(user));
+      storeRealtimePassword(hashedPassword(resp.wirePasswordEncoded));
+      setRealtimeCredentialVersion((value) => value + 1);
       setState({
         token: resp.token,
         user,
@@ -74,16 +76,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const refreshRealtimePassword = useCallback((password: string) => {
+    storeRealtimePassword(createRealtimePassword(password));
+    setRealtimeCredentialVersion((value) => value + 1);
+  }, []);
+
   const logout = useCallback(() => {
     localStorage.removeItem(STORAGE_KEYS.Token);
     localStorage.removeItem(STORAGE_KEYS.User);
+    clearRealtimePassword();
+    setRealtimeCredentialVersion((value) => value + 1);
     setState({ token: null, user: null, isAdmin: false, loading: false });
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ ...state, login, logout }),
-    [state, login, logout]
+    () => ({
+      ...state,
+      login,
+      logout,
+      refreshRealtimePassword,
+      realtimeCredentialAvailable: hasRealtimePassword(),
+      realtimeCredentialVersion,
+    }),
+    [state, login, logout, refreshRealtimePassword, realtimeCredentialVersion]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+function normalizeStoredUser(value: unknown): AuthUser {
+  const object = (value ?? {}) as Record<string, unknown>;
+  return {
+    nodeId: String(object.nodeId ?? object.node_id ?? ""),
+    userId: String(object.userId ?? object.user_id ?? ""),
+    username: String(object.username ?? ""),
+    role: String(object.role ?? ""),
+  };
 }

@@ -3,7 +3,6 @@ export function getApiBaseUrl(): string {
   return import.meta.env.VITE_API_BASE_URL ?? "/api";
 }
 
-export function getWsUrl(): string {
-  const proto = location.protocol === "https:" ? "wss:" : "ws:";
-  return `${proto}//${location.host}/api`;
+export function getRealtimeBaseUrl(): string {
+  return new URL(getApiBaseUrl(), window.location.origin).toString();
 }

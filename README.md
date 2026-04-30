@@ -20,7 +20,7 @@ turntf 分布式通知服务的管理平台 Web 应用，提供实时的聊天�
 # 安装依赖
 npm install
 
-# 开发模式（Vite :5173，/api 代理到 localhost:8080）
+# 开发模式（Vite :5173，/api 同时代理 HTTP 和 WebSocket 到 localhost:8080）
 npm run dev
 
 # 生产构建 + 启动 Express 服务 (:3100)
@@ -208,7 +208,7 @@ turntf-web/
               └── WebSocket upgrade → 升级转发到 turntf 后端
 ```
 
-- **开发模式**：Vite 开发服务器 (:5173) 自身代理 `/api` 到后端
+- **开发模式**：Vite 开发服务器 (:5173) 自身代理 `/api` 到后端，并转发聊天长连接 `/api/ws/client`
 - **生产模式**：Express (:3100) 托管静态文件并代理 API/WebSocket
 
 ### 状态管理

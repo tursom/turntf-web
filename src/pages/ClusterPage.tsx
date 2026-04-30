@@ -38,23 +38,23 @@ export function ClusterPage() {
               children: (
                 <Table
                   dataSource={nodes}
-                  rowKey="node_id"
+                  rowKey="nodeId"
                   loading={nodesLoading}
                   pagination={false}
                   columns={[
                     {
                       title: "节点 ID",
-                      dataIndex: "node_id",
+                      dataIndex: "nodeId",
                       render: idToStr,
                     },
                     {
                       title: "本地",
-                      dataIndex: "is_local",
+                      dataIndex: "isLocal",
                       render: (v: boolean) => (v ? <Tag color="green">本地</Tag> : null),
                     },
                     {
                       title: "配置 URL",
-                      dataIndex: "configured_url",
+                      dataIndex: "configuredUrl",
                       ellipsis: true,
                     },
                     {
@@ -64,7 +64,7 @@ export function ClusterPage() {
                     {
                       title: "操作",
                       render: (_, record) => (
-                        <a onClick={() => setSelectedNodeId(idToStr(record.node_id))}>
+                        <a onClick={() => setSelectedNodeId(idToStr(record.nodeId))}>
                           查看在线用户
                         </a>
                       ),
@@ -85,20 +85,20 @@ export function ClusterPage() {
                       value={selectedNodeId}
                       onChange={setSelectedNodeId}
                       options={nodes.map((n) => ({
-                        label: `节点 ${idToStr(n.node_id)}${n.is_local ? " (本地)" : ""}`,
-                        value: idToStr(n.node_id),
+                        label: `节点 ${idToStr(n.nodeId)}${n.isLocal ? " (本地)" : ""}`,
+                        value: idToStr(n.nodeId),
                       }))}
                     />
                   </div>
                   {selectedNodeId && (
                     <Table
                       dataSource={loggedInUsers}
-                      rowKey={(r) => `${r.node_id}:${r.user_id}`}
+                      rowKey={(record) => `${record.nodeId}:${record.userId}`}
                       loading={usersLoading}
                       pagination={false}
                       columns={[
-                        { title: "节点 ID", dataIndex: "node_id", render: idToStr },
-                        { title: "用户 ID", dataIndex: "user_id", render: idToStr },
+                        { title: "节点 ID", dataIndex: "nodeId", render: idToStr },
+                        { title: "用户 ID", dataIndex: "userId", render: idToStr },
                         { title: "用户名", dataIndex: "username" },
                       ]}
                     />
