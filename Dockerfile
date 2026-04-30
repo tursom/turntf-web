@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 FROM node:22-alpine AS builder
 
 WORKDIR /src
@@ -9,7 +10,6 @@ RUN npm ci
 COPY . .
 
 RUN npm run build
-
 
 FROM node:22-alpine
 

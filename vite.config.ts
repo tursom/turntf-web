@@ -7,7 +7,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@tursom/turntf-web-sdk": path.resolve(__dirname, "./packages/turntf-web-sdk/src/index.ts"),
     },
   },
   server: {
