@@ -1,18 +1,8 @@
 // Type definitions matching turntf HTTP API JSON responses (snake_case).
 
-export interface UserRef {
-  node_id: number;
-  user_id: number;
-}
+import type { UserRef } from "@tursom/turntf-web-sdk";
 
-export interface Message {
-  recipient: UserRef;
-  node_id: number;
-  seq: number;
-  sender: UserRef;
-  body: number[]; // JSON array of bytes
-  created_at: string;
-}
+export type { Message, UserRef } from "@tursom/turntf-web-sdk";
 
 export interface User {
   node_id: number;

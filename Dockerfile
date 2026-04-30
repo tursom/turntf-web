@@ -4,9 +4,6 @@ WORKDIR /src
 
 COPY package.json package-lock.json ./
 
-# 移除未使用的本地 SDK 依赖，避免 Docker 构建时找不到路径
-RUN sed -i '/@tursom\/turntf-js/d' package.json
-
 RUN npm ci
 
 COPY . .
@@ -22,9 +19,6 @@ RUN addgroup -S -g 10001 turntf && \
 WORKDIR /app
 
 COPY --from=builder /src/package.json /src/package-lock.json ./
-
-# 移除未使用的本地 SDK 依赖
-RUN sed -i '/@tursom\/turntf-js/d' package.json
 
 RUN npm ci --omit=dev && npm cache clean --force
 

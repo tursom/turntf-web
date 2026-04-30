@@ -1,9 +1,5 @@
-import type { Message } from "@/types";
-import { getApiUrl } from "./client";
-
-function authHeaders(token: string): Record<string, string> {
-  return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-}
+import type { ListMessagesByUserOptions, Message, MessageWatcher, WatchMessagesByUserOptions } from "@tursom/turntf-web-sdk";
+import { getTurntfWebClient } from "./client";
 
 export async function listMessagesByUser(
   token: string,
@@ -11,13 +7,8 @@ export async function listMessagesByUser(
   userId: string,
   limit = 50
 ): Promise<Message[]> {
-  const resp = await fetch(
-    `${getApiUrl()}/nodes/${nodeId}/users/${userId}/messages?limit=${limit}`,
-    { headers: authHeaders(token) }
-  );
-  if (!resp.ok) throw new Error(await resp.text());
-  const data = await resp.json();
-  return data.items ?? [];
+  const options: ListMessagesByUserOptions = { limit };
+  return getTurntfWebClient().listMessagesByUser(token, nodeId, userId, options);
 }
 
 export async function sendMessage(
@@ -26,11 +17,14 @@ export async function sendMessage(
   userId: string,
   body: Uint8Array
 ): Promise<Message> {
-  const resp = await fetch(`${getApiUrl()}/nodes/${nodeId}/users/${userId}/messages`, {
-    method: "POST",
-    headers: authHeaders(token),
-    body: JSON.stringify({ body: Array.from(body) }),
-  });
-  if (!resp.ok) throw new Error(await resp.text());
-  return resp.json();
+  return getTurntfWebClient().sendMessage(token, nodeId, userId, body);
+}
+
+export function watchMessagesByUser(
+  token: string,
+  nodeId: string,
+  userId: string,
+  options: WatchMessagesByUserOptions
+): MessageWatcher {
+  return getTurntfWebClient().watchMessagesByUser(token, nodeId, userId, options);
 }

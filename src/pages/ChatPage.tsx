@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Layout } from "antd";
 import type { UserRef, Message } from "@/types";
@@ -6,11 +6,9 @@ import { ConversationList } from "@/components/chat/ConversationList";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
-import { listMessagesByUser, sendMessage } from "@/api/messages";
+import { sendMessage, watchMessagesByUser } from "@/api/messages";
 import { encodeText } from "@/utils/text";
 import { idToStr } from "@/utils/format";
-
-const POLL_INTERVAL = 3000;
 
 export function ChatPage() {
   const { nodeId, userId } = useParams<{ nodeId?: string; userId?: string }>();
@@ -18,41 +16,35 @@ export function ChatPage() {
   const { connected, messages, addMessage } = useChat();
   const [selectedTarget, setSelectedTarget] = useState<UserRef | null>(null);
   const [history, setHistory] = useState<Message[]>([]);
-  const lastSeqRef = useRef<number>(0);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (nodeId && userId) setSelectedTarget({ node_id: Number(nodeId), user_id: Number(userId) });
   }, [nodeId, userId]);
 
-  // Load history
   useEffect(() => {
+    setHistory([]);
     if (!selectedTarget || !token) return;
-    listMessagesByUser(token, idToStr(selectedTarget.node_id), idToStr(selectedTarget.user_id))
-      .then((msgs) => {
-        setHistory(msgs);
-        if (msgs.length > 0) lastSeqRef.current = msgs[msgs.length - 1].seq;
-      })
-      .catch(() => {});
-  }, [selectedTarget, token]);
-
-  // Poll
-  useEffect(() => {
-    if (!selectedTarget || !token) return;
-    const interval = setInterval(async () => {
-      try {
-        const msgs = await listMessagesByUser(token, idToStr(selectedTarget.node_id), idToStr(selectedTarget.user_id));
-        for (const m of msgs) {
-          if (m.seq > lastSeqRef.current) addMessage(m);
-        }
-        if (msgs.length > 0) lastSeqRef.current = msgs[msgs.length - 1].seq;
-      } catch {}
-    }, POLL_INTERVAL);
-    return () => clearInterval(interval);
+    const watcher = watchMessagesByUser(
+      token,
+      idToStr(selectedTarget.node_id),
+      idToStr(selectedTarget.user_id),
+      {
+        intervalMs: 3000,
+        onSnapshot: (msgs) => {
+          setHistory(msgs);
+        },
+        onMessages: (msgs) => {
+          for (const msg of msgs) {
+            addMessage(msg);
+          }
+        },
+      }
+    );
+    return () => watcher.stop();
   }, [selectedTarget, token, addMessage]);
 
   const handleSelect = useCallback((target: UserRef) => {
-    lastSeqRef.current = 0;
     navigate(`/chat/${idToStr(target.node_id)}/${idToStr(target.user_id)}`);
   }, [navigate]);
 

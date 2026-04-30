@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { List, Typography, Badge, Button, Space, Segmented } from "antd";
 import { PlusOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
+import { decodeBytes } from "@tursom/turntf-web-sdk";
 import type { UserRef } from "@/types";
 import { AttachmentType } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
@@ -53,7 +54,7 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
       const isFromMe = idToStr(msg.sender.node_id) === user.node_id && idToStr(msg.sender.user_id) === user.user_id;
       const peer = isFromMe ? msg.recipient : msg.sender;
       const key = `${peer.node_id}:${peer.user_id}`;
-      const preview = new TextDecoder().decode(new Uint8Array(msg.body));
+      const preview = decodeBytes(msg.body);
       newKeys.set(key, { time: msg.created_at, preview: preview.slice(0, 50) });
     }
     setConversations((prev) => {

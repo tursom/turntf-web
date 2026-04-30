@@ -17,6 +17,9 @@ turntf 分布式通知服务的管理平台 Web 应用，提供实时的聊天�
 ## 快速开始
 
 ```bash
+# 初始化内嵌 SDK submodule
+git submodule update --init --recursive
+
 # 安装依赖
 npm install
 
@@ -187,6 +190,8 @@ turntf-web/
 │   ├── pages/                 # 页面组件
 │   ├── types/                 # TypeScript 类型定义
 │   └── utils/                 # 工具函数（格式化、编码、常量）
+├── packages/
+│   └── turntf-web-sdk/        # 浏览器侧 turntf SDK（nested submodule）
 ├── index.html
 ├── package.json
 ├── tsconfig.json              # 前端 TS 配置

@@ -17,7 +17,9 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@tursom/turntf-web-sdk": ["./packages/turntf-web-sdk/src/index.ts"],
+      "@tursom/turntf-web-sdk/*": ["./packages/turntf-web-sdk/src/*"]
     },
     "baseUrl": "."
   },
