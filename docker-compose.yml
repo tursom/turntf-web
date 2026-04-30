@@ -1,0 +1,10 @@
+services:
+  turntf-web:
+    build:
+      context: .
+    image: turntf-web:local
+    ports:
+      - "3100:3100"
+    environment:
+      - TURNTF_BACKEND_URL=http://turntf:8080
+    restart: unless-stopped
