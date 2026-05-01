@@ -1,11 +1,13 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { List, Typography, Badge, Button, Space, Segmented, Spin, Empty } from "antd";
 import { PlusOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
 import type { UserRef } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
 import { listSubscriptions } from "@/api/subscriptions";
+import { getHTTPClient } from "@/api/client";
 import { formatBytes, idToStr, formatRelativeTime } from "@/utils/format";
+import { encodeText, decodeText } from "@/utils/text";
 import { ContactPicker } from "./ContactPicker";
 import { useUserDisplayName } from "@/hooks/useUserDisplayName";
 
@@ -29,31 +31,29 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
   const [loadingSubs, setLoadingSubs] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "users" | "channels">("all");
-
-  const storageKey = useMemo(() => {
-    if (!user) return null;
-    return `turntf_conversations_${user.nodeId}_${user.userId}`;
-  }, [user]);
+  const loadedRef = useRef(false);
 
   useEffect(() => {
-    if (!storageKey) return;
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setConversations(parsed);
+    if (!token || !user) return;
+    const client = getHTTPClient();
+    client.getUserMetadata(token, user, "conversations")
+      .then((meta) => {
+        const list = JSON.parse(decodeText(meta.value));
+        if (Array.isArray(list) && list.length > 0) {
+          setConversations(list);
           setLoadingSubs(false);
         }
-      }
-    } catch {}
-  }, [storageKey]);
+      })
+      .catch(() => {})
+      .finally(() => { loadedRef.current = true; });
+  }, [token, user]);
 
   useEffect(() => {
-    if (storageKey && conversations.length > 0) {
-      localStorage.setItem(storageKey, JSON.stringify(conversations));
-    }
-  }, [conversations, storageKey]);
+    if (!token || !user || !loadedRef.current || conversations.length === 0) return;
+    const client = getHTTPClient();
+    const value = encodeText(JSON.stringify(conversations));
+    client.upsertUserMetadata(token, user, "conversations", { value }).catch(() => {});
+  }, [conversations, token, user]);
 
   useEffect(() => {
     if (!token || !user) return;
