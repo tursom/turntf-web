@@ -38,7 +38,6 @@ export async function loginByLoginName(
   }
 
   const wirePassword = createRealtimePassword(password);
-
   const response = await fetch(`${getApiUrl()}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

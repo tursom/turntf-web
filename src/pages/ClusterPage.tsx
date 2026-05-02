@@ -4,12 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { listClusterNodes, listNodeLoggedInUsers } from "@/api/cluster";
 import { REFETCH_INTERVALS } from "@/utils/constants";
 import { idToStr } from "@/utils/format";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import type { LoggedInUser } from "@/types";
 
 const { Title } = Typography;
 
 export function ClusterPage() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
 
   const { data: nodes = [], isLoading: nodesLoading } = useQuery({
@@ -25,6 +26,21 @@ export function ClusterPage() {
     enabled: !!token && !!selectedNodeId,
     refetchInterval: REFETCH_INTERVALS.LoggedInUsers,
   });
+
+  useEffect(() => {
+    if (selectedNodeId !== null || nodes.length === 0) return;
+    const local = nodes.find((n) => n.isLocal);
+    if (local) {
+      setSelectedNodeId(local.nodeId);
+    } else if (user?.nodeId) {
+      setSelectedNodeId(user.nodeId);
+    }
+  }, [selectedNodeId, nodes, user]);
+
+  const isCurrentUser = (record: LoggedInUser): boolean =>
+    user !== null &&
+    record.nodeId === user.nodeId &&
+    record.userId === user.userId;
 
   return (
     <div>
@@ -96,10 +112,22 @@ export function ClusterPage() {
                       rowKey={(record) => `${record.nodeId}:${record.userId}`}
                       loading={usersLoading}
                       pagination={false}
+                      onRow={(record) => ({
+                        style: isCurrentUser(record) ? { backgroundColor: "#e6f4ff" } : undefined,
+                      })}
                       columns={[
                         { title: "节点 ID", dataIndex: "nodeId", render: idToStr },
                         { title: "用户 ID", dataIndex: "userId", render: idToStr },
-                        { title: "用户名", dataIndex: "username" },
+                        {
+                          title: "用户名",
+                          dataIndex: "username",
+                          render: (username: string, record: LoggedInUser) => (
+                            <span>
+                              {username}
+                              {isCurrentUser(record) && <Tag color="blue" style={{ marginLeft: 8 }}>我</Tag>}
+                            </span>
+                          ),
+                        },
                       ]}
                     />
                   )}

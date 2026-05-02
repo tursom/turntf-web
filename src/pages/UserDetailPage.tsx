@@ -23,7 +23,7 @@ export function UserDetailPage() {
 
   if (!nodeId || !userId) return null;
 
-  const handleUpdate = async (v: { username?: string; password?: string; role?: string }) => {
+  const handleUpdate = async (v: { username?: string; password?: string; role?: string; loginName?: string }) => {
     if (!token) return;
     try { await updateUser(token, nodeId, userId, v); message.success("更新成功"); setEditing(false); queryClient.invalidateQueries({ queryKey: ["user", nodeId, userId] }); }
     catch (e) { message.error(e instanceof Error ? e.message : "更新失败"); }
@@ -44,6 +44,7 @@ export function UserDetailPage() {
             <Descriptions.Item label="节点 ID">{idToStr(user.nodeId)}</Descriptions.Item>
             <Descriptions.Item label="用户 ID">{idToStr(user.userId)}</Descriptions.Item>
             <Descriptions.Item label="用户名">{user.username}</Descriptions.Item>
+            <Descriptions.Item label="登录名">{user.loginName || "-"}</Descriptions.Item>
             <Descriptions.Item label="角色"><Tag color={rc[user.role] ?? "default"}>{user.role}</Tag></Descriptions.Item>
             <Descriptions.Item label="系统保留">{user.systemReserved ? "是" : "否"}</Descriptions.Item>
             <Descriptions.Item label="来源节点">{idToStr(user.originNodeId)}</Descriptions.Item>
@@ -55,6 +56,7 @@ export function UserDetailPage() {
       <Modal title="编辑用户" open={editing} onCancel={() => setEditing(false)} onOk={() => form.submit()}>
         <Form form={form} layout="vertical" onFinish={handleUpdate}>
           <Form.Item name="username" label="用户名"><Input placeholder={user?.username} /></Form.Item>
+          <Form.Item name="loginName" label="登录名"><Input placeholder={user?.loginName || "未设置"} /></Form.Item>
           <Form.Item name="password" label="新密码"><Input.Password placeholder="留空则不修改" /></Form.Item>
           <Form.Item name="role" label="角色">
             <Select allowClear placeholder={user?.role}

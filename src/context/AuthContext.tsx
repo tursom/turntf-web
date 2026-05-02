@@ -1,6 +1,8 @@
-import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
+import React, { createContext, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { hashedPassword } from "@tursom/turntf-web-sdk";
 import { isAdminRole, STORAGE_KEYS } from "@/utils/constants";
+import { onUnauthorized } from "@/utils/authEvents";
 import { login as apiLogin, loginByLoginName as apiLoginByLoginName } from "@/api/auth";
 import {
   clearRealtimePassword,
@@ -29,6 +31,11 @@ export interface AuthContextValue extends AuthState {
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const locationRef = useRef(location);
+  locationRef.current = location;
+
   const [realtimeCredentialVersion, setRealtimeCredentialVersion] = useState(0);
   const [state, setState] = useState<AuthState>({
     token: null,
@@ -36,6 +43,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isAdmin: false,
     loading: true,
   });
+
+  const logout = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEYS.Token);
+    localStorage.removeItem(STORAGE_KEYS.User);
+    clearRealtimePassword();
+    setRealtimeCredentialVersion((value) => value + 1);
+    setState({ token: null, user: null, isAdmin: false, loading: false });
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onUnauthorized(() => {
+      logout();
+      navigate(`/login?redirect=${encodeURIComponent(locationRef.current.pathname)}`, { replace: true });
+    });
+    return unsubscribe;
+  }, [logout, navigate]);
 
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_KEYS.Token);
@@ -99,14 +122,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshRealtimePassword = useCallback((password: string) => {
     storeRealtimePassword(createRealtimePassword(password));
     setRealtimeCredentialVersion((value) => value + 1);
-  }, []);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEYS.Token);
-    localStorage.removeItem(STORAGE_KEYS.User);
-    clearRealtimePassword();
-    setRealtimeCredentialVersion((value) => value + 1);
-    setState({ token: null, user: null, isAdmin: false, loading: false });
   }, []);
 
   const value = useMemo<AuthContextValue>(

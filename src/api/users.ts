@@ -1,7 +1,8 @@
 import type { User } from "@/types";
-import { plainPasswordSync } from "@tursom/turntf-web-sdk";
+import { hashedPassword } from "@tursom/turntf-web-sdk";
 import { jsonToBytes } from "@/utils/text";
 import { getApiUrl, getHTTPClient } from "./client";
+import { wrappedFetch } from "./fetchWrapper";
 
 function authHeaders(token: string): Record<string, string> {
   return {
@@ -11,7 +12,7 @@ function authHeaders(token: string): Record<string, string> {
 }
 
 export async function listUsers(token: string): Promise<User[]> {
-  const resp = await fetch(`${getApiUrl()}/users`, { headers: authHeaders(token) });
+  const resp = await wrappedFetch(`${getApiUrl()}/users`, { headers: authHeaders(token) });
   if (!resp.ok) throw new Error(await resp.text());
   const data = await resp.json();
   const items = Array.isArray(data) ? data : (data.items ?? []);
@@ -24,12 +25,13 @@ export async function getUser(token: string, nodeId: string, userId: string): Pr
 
 export async function createUser(
   token: string,
-  req: { username: string; password: string; role: string }
+  req: { username: string; password: string; role: string; loginName?: string }
 ): Promise<User> {
   return getHTTPClient().createUser(token, {
     username: req.username,
-    password: plainPasswordSync(req.password),
+    password: hashedPassword(req.password),
     role: req.role,
+    loginName: req.loginName,
   });
 }
 
@@ -37,6 +39,7 @@ export interface UpdateUserInput {
   username?: string;
   password?: string;
   role?: string;
+  loginName?: string;
   profileJson?: Uint8Array;
 }
 
@@ -48,8 +51,9 @@ export async function updateUser(
 ): Promise<User> {
   return getHTTPClient().updateUser(token, { nodeId, userId }, {
     username: req.username,
-    password: req.password == null ? undefined : plainPasswordSync(req.password),
+    password: req.password == null ? undefined : hashedPassword(req.password),
     role: req.role,
+    loginName: req.loginName,
     profileJson: req.profileJson,
   });
 }
