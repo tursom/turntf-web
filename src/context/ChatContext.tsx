@@ -107,11 +107,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
     const client = new Client({
       baseUrl: getRealtimeUrl(),
-      credentials: {
-        nodeId: user.nodeId,
-        userId: user.userId,
-        password,
-      },
+      credentials: user.loginName
+        ? {
+            loginName: user.loginName,
+            password,
+          }
+        : {
+            nodeId: user.nodeId,
+            userId: user.userId,
+            password,
+          },
       cursorStore: new MemoryCursorStore(),
       handler: new Handler(),
     });

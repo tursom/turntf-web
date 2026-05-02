@@ -1,7 +1,7 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import { hashedPassword } from "@tursom/turntf-web-sdk";
 import { isAdminRole, STORAGE_KEYS } from "@/utils/constants";
-import { login as apiLogin } from "@/api/auth";
+import { login as apiLogin, loginByLoginName as apiLoginByLoginName } from "@/api/auth";
 import {
   clearRealtimePassword,
   createRealtimePassword,
@@ -19,6 +19,7 @@ export interface AuthState {
 
 export interface AuthContextValue extends AuthState {
   login: (nodeId: string, userId: string, password: string) => Promise<LoginResult>;
+  loginByLoginName: (loginName: string, password: string) => Promise<LoginResult>;
   logout: () => void;
   refreshRealtimePassword: (password: string) => void;
   realtimeCredentialAvailable: boolean;
@@ -76,6 +77,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const loginByLoginName = useCallback(
+    async (loginName: string, password: string): Promise<LoginResult> => {
+      const resp = await apiLoginByLoginName(loginName, password);
+      const user: AuthUser = resp.user;
+      localStorage.setItem(STORAGE_KEYS.Token, resp.token);
+      localStorage.setItem(STORAGE_KEYS.User, JSON.stringify(user));
+      storeRealtimePassword(hashedPassword(resp.wirePasswordEncoded));
+      setRealtimeCredentialVersion((value) => value + 1);
+      setState({
+        token: resp.token,
+        user,
+        isAdmin: isAdminRole(user.role),
+        loading: false,
+      });
+      return resp;
+    },
+    []
+  );
+
   const refreshRealtimePassword = useCallback((password: string) => {
     storeRealtimePassword(createRealtimePassword(password));
     setRealtimeCredentialVersion((value) => value + 1);
@@ -93,12 +113,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       ...state,
       login,
+      loginByLoginName,
       logout,
       refreshRealtimePassword,
       realtimeCredentialAvailable: hasRealtimePassword(),
       realtimeCredentialVersion,
     }),
-    [state, login, logout, refreshRealtimePassword, realtimeCredentialVersion]
+    [state, login, loginByLoginName, logout, refreshRealtimePassword, realtimeCredentialVersion]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -110,6 +131,7 @@ function normalizeStoredUser(value: unknown): AuthUser {
     nodeId: String(object.nodeId ?? object.node_id ?? ""),
     userId: String(object.userId ?? object.user_id ?? ""),
     username: String(object.username ?? ""),
+    loginName: String(object.loginName ?? object.login_name ?? ""),
     role: String(object.role ?? ""),
   };
 }

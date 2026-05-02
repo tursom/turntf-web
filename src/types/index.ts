@@ -13,6 +13,7 @@ export interface AuthUser {
   nodeId: string;
   userId: string;
   username: string;
+  loginName: string;
   role: string;
 }
 

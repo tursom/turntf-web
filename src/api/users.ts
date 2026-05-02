@@ -68,6 +68,7 @@ function mapUserFromHttp(value: Record<string, unknown>): User {
     nodeId: String(value.node_id ?? ""),
     userId: String(value.user_id ?? ""),
     username: String(value.username ?? ""),
+    loginName: String(value.login_name ?? ""),
     role: String(value.role ?? ""),
     profileJson: jsonToBytes(profile),
     systemReserved: Boolean(value.system_reserved),
