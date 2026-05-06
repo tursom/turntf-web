@@ -13,9 +13,6 @@ RUN npm run build
 
 FROM node:22-alpine
 
-RUN addgroup -S -g 10001 turntf && \
-    adduser -S -D -H -h /app -u 10001 -G turntf turntf
-
 WORKDIR /app
 
 COPY --from=builder /src/package.json /src/package-lock.json ./
@@ -25,8 +22,6 @@ RUN npm ci --omit=dev && npm cache clean --force
 COPY --from=builder /src/dist ./dist
 COPY --from=builder /src/server ./server
 COPY --from=builder /src/tsconfig.node.json ./tsconfig.node.json
-
-USER turntf:turntf
 
 EXPOSE 3100
 
