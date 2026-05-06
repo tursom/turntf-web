@@ -25,11 +25,11 @@ export async function getUser(token: string, nodeId: string, userId: string): Pr
 
 export async function createUser(
   token: string,
-  req: { username: string; password: string; role: string; loginName?: string }
+  req: { username: string; password?: string; role: string; loginName?: string }
 ): Promise<User> {
   return getHTTPClient().createUser(token, {
     username: req.username,
-    password: hashedPassword(req.password),
+    password: req.password ? hashedPassword(req.password) : undefined,
     role: req.role,
     loginName: req.loginName,
   });

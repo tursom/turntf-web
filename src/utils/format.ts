@@ -1,18 +1,19 @@
 import dayjs from "dayjs";
 import type { Message } from "@tursom/turntf-web-sdk";
 
+function hlcToMs(hlcTimestamp: string): number {
+  const parts = hlcTimestamp.split("-");
+  return Number(parts[0]);
+}
+
 export function formatTime(hlcTimestamp: string): string {
   if (!hlcTimestamp) return "-";
-  const parts = hlcTimestamp.split("-");
-  const ms = Number(parts[0]) / 1_000_000;
-  return dayjs(ms).format("YYYY-MM-DD HH:mm:ss");
+  return dayjs(hlcToMs(hlcTimestamp)).format("YYYY-MM-DD HH:mm:ss");
 }
 
 export function formatRelativeTime(hlcTimestamp: string): string {
   if (!hlcTimestamp) return "-";
-  const parts = hlcTimestamp.split("-");
-  const ms = Number(parts[0]) / 1_000_000;
-  const d = dayjs(ms);
+  const d = dayjs(hlcToMs(hlcTimestamp));
   const now = dayjs();
   const diffMinutes = now.diff(d, "minute");
   if (diffMinutes < 1) return "刚刚";

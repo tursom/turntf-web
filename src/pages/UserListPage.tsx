@@ -17,13 +17,14 @@ export function UserListPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm();
   const [creating, setCreating] = useState(false);
+  const selectedRole: string = Form.useWatch("role", form) ?? "user";
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["users"], queryFn: () => listUsers(token!),
     enabled: !!token, refetchInterval: REFETCH_INTERVALS.Users,
   });
 
-  const handleCreate = async (v: { username: string; password: string; role: string; loginName?: string }) => {
+  const handleCreate = async (v: { username: string; password?: string; role: string; loginName?: string }) => {
     if (!token) return; setCreating(true);
     try {
       await createUser(token, v);
@@ -69,7 +70,9 @@ export function UserListPage() {
         <Form form={form} layout="vertical" onFinish={handleCreate}>
           <Form.Item name="username" label="用户名" rules={[{ required: true }]}><Input /></Form.Item>
           <Form.Item name="loginName" label="登录名"><Input placeholder="留空则仅可通过 ID 登录" /></Form.Item>
-          <Form.Item name="password" label="密码" rules={[{ required: true, min: 4 }]}><Input.Password /></Form.Item>
+          <Form.Item name="password" label="密码" rules={selectedRole === "channel" ? [] : [{ required: true, min: 4 }]}>
+            <Input.Password disabled={selectedRole === "channel"} placeholder={selectedRole === "channel" ? "频道无需密码" : undefined} />
+          </Form.Item>
           <Form.Item name="role" label="角色" initialValue="user" rules={[{ required: true }]}>
             <Select options={[{ label: "用户 (user)", value: "user" }, { label: "管理员 (admin)", value: "admin" }, { label: "频道 (channel)", value: "channel" }]} />
           </Form.Item>

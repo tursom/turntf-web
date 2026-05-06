@@ -16,6 +16,7 @@ export function ChatPage() {
   const { connected, messages, sendMessage, statusText } = useChat();
   const [selectedTarget, setSelectedTarget] = useState<UserRef | null>(null);
   const [history, setHistory] = useState<Message[]>([]);
+  const [sentMessages, setSentMessages] = useState<Message[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,12 +25,15 @@ export function ChatPage() {
 
   useEffect(() => {
     setHistory([]);
+    setSentMessages([]);
     if (!selectedTarget || !token) return;
     void listMessages(
       token,
+      "0",
+      "0",
+      50,
       idToStr(selectedTarget.nodeId),
       idToStr(selectedTarget.userId),
-      50
     ).then(setHistory).catch(() => setHistory([]));
   }, [selectedTarget, token]);
 
@@ -39,7 +43,11 @@ export function ChatPage() {
 
   const handleSend = useCallback(async (text: string) => {
     if (!selectedTarget) return;
-    await sendMessage(selectedTarget, encodeText(text));
+    const msg = await sendMessage(selectedTarget, encodeText(text));
+    setSentMessages((prev) => {
+      if (prev.some((m) => messageKey(m) === messageKey(msg))) return prev;
+      return [...prev, msg];
+    });
   }, [selectedTarget, sendMessage]);
 
   const liveMessages = messages.filter((msg) => {
@@ -51,7 +59,14 @@ export function ChatPage() {
     return sk === tk || (sk === mk && rk === tk);
   });
 
-  const all = [...[...history].reverse(), ...liveMessages.filter((live) => !history.some((historic) => messageKey(historic) === messageKey(live)))];
+  const histKeys = new Set(history.map((m) => messageKey(m)));
+  const dedupedLive = liveMessages.filter((live) => !histKeys.has(messageKey(live)));
+  const liveKeys = new Set(dedupedLive.map((m) => messageKey(m)));
+  const all = [
+    ...[...history].reverse(),
+    ...dedupedLive,
+    ...sentMessages.filter((s) => !histKeys.has(messageKey(s)) && !liveKeys.has(messageKey(s))),
+  ];
 
   return (
     <Layout style={{ height: "calc(100vh - 56px - 48px)", background: "#fff", borderRadius: 8, overflow: "hidden" }}>

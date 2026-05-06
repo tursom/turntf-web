@@ -23,58 +23,45 @@ interface Props {
   selectedTarget: UserRef | null;
 }
 
+function saveConversations(token: string, user: UserRef, conversations: Conversation[]) {
+  const client = getHTTPClient();
+  const value = encodeText(JSON.stringify(conversations));
+  client.upsertUserMetadata(token, user, "conversations", { value }).catch(() => {});
+}
+
 export function ConversationList({ onSelect, selectedTarget }: Props) {
   const { token, user } = useAuth();
   const { messages, connected } = useChat();
   const { getUserDisplayName } = useUserDisplayName();
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loadingSubs, setLoadingSubs] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [filter, setFilter] = useState<"all" | "users" | "channels">("all");
   const loadedRef = useRef(false);
 
   useEffect(() => {
-    if (!token || !user) return;
+    if (!token || !user || loadedRef.current) return;
+    loadedRef.current = true;
+    setLoading(true);
     const client = getHTTPClient();
-    client.getUserMetadata(token, user, "conversations")
-      .then((meta) => {
+    Promise.all([
+      client.getUserMetadata(token, user, "conversations").then((meta) => {
         const list = JSON.parse(decodeText(meta.value));
-        if (Array.isArray(list) && list.length > 0) {
-          setConversations(list);
-          setLoadingSubs(false);
-        }
-      })
-      .catch(() => {})
-      .finally(() => { loadedRef.current = true; });
-  }, [token, user]);
-
-  useEffect(() => {
-    if (!token || !user || !loadedRef.current || conversations.length === 0) return;
-    const client = getHTTPClient();
-    const value = encodeText(JSON.stringify(conversations));
-    client.upsertUserMetadata(token, user, "conversations", { value }).catch(() => {});
-  }, [conversations, token, user]);
-
-  useEffect(() => {
-    if (!token || !user) return;
-    setLoadingSubs(true);
-    listSubscriptions(token, user.nodeId, user.userId)
-      .then((subs) => {
-        const chs: Conversation[] = subs.map((s) => ({
-          target: s.channel,
-          isChannel: true,
-        }));
-        setConversations((prev) => {
-          const keys = new Set(prev.map((c) => `${c.target.nodeId}:${c.target.userId}`));
-          return [...prev, ...chs.filter((c) => !keys.has(`${c.target.nodeId}:${c.target.userId}`))];
-        });
-      })
-      .catch(() => {})
-      .finally(() => setLoadingSubs(false));
+        if (Array.isArray(list) && list.length > 0) return list as Conversation[];
+        return [];
+      }).catch(() => [] as Conversation[]),
+      listSubscriptions(token, user.nodeId, user.userId).then((subs) =>
+        subs.map((s) => ({ target: s.channel, isChannel: true } as Conversation))
+      ).catch(() => [] as Conversation[]),
+    ]).then(([saved, chs]) => {
+      const keys = new Set(saved.map((c) => `${c.target.nodeId}:${c.target.userId}`));
+      setConversations([...saved, ...chs.filter((c) => !keys.has(`${c.target.nodeId}:${c.target.userId}`))]);
+    }).finally(() => setLoading(false));
   }, [token, user]);
 
   useEffect(() => {
     if (messages.length === 0 || !user) return;
+    let hasNew = false;
     const newKeys = new Map<string, { time: string; preview: string }>();
     for (const msg of messages) {
       const isFromMe = idToStr(msg.sender.nodeId) === user.nodeId && idToStr(msg.sender.userId) === user.userId;
@@ -89,21 +76,24 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
         const [nid, uid] = key.split(":");
         const existing = copy.find((c) => `${c.target.nodeId}` === nid && `${c.target.userId}` === uid);
         if (existing) { existing.lastTime = info.time; existing.lastPreview = info.preview; }
-        else copy.push({ target: { nodeId: nid, userId: uid }, isChannel: false, lastTime: info.time, lastPreview: info.preview });
+        else { copy.push({ target: { nodeId: nid, userId: uid }, isChannel: false, lastTime: info.time, lastPreview: info.preview }); hasNew = true; }
       }
       copy.sort((a, b) => { if (!a.lastTime) return 1; if (!b.lastTime) return -1; return b.lastTime.localeCompare(a.lastTime); });
+      if (hasNew && token && user) saveConversations(token, user, copy);
       return copy;
     });
-  }, [messages, user]);
+  }, [messages, user, token]);
 
   const handleNew = useCallback((target: UserRef) => {
     onSelect(target);
     setConversations((prev) => {
       const exists = prev.find((c) => `${c.target.nodeId}` === `${target.nodeId}` && `${c.target.userId}` === `${target.userId}`);
       if (exists) return prev;
-      return [{ target, isChannel: false }, ...prev];
+      const next = [{ target, isChannel: false }, ...prev];
+      if (token && user) saveConversations(token, user, next);
+      return next;
     });
-  }, [onSelect]);
+  }, [onSelect, token, user]);
 
   const filtered = conversations.filter((c) => {
     if (filter === "users") return !c.isChannel;
@@ -123,7 +113,7 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
           options={[{ label: "全部", value: "all" }, { label: "用户", value: "users" }, { label: "频道", value: "channels" }]} />
       </div>
       <div style={{ flex: 1, overflow: "auto" }}>
-        {loadingSubs ? (
+        {loading ? (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
             <Spin tip="加载会话..." />
           </div>

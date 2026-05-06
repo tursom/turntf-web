@@ -119,7 +119,7 @@ docker compose up -d
 # docker-compose.full.yml
 services:
   turntf:
-    image: turntf:local
+    image: ghcr.io/tursom/turntf:latest
     ports:
       - "8080:8080"
     volumes:
@@ -128,8 +128,7 @@ services:
     restart: unless-stopped
 
   turntf-web:
-    build:
-      context: ./turntf-web
+    image: ghcr.io/tursom/turntf-web:latest
     ports:
       - "3100:3100"
     environment:
@@ -140,9 +139,6 @@ services:
 ```
 
 ```bash
-# 先构建 turntf 后端镜像（在 turntf/ 目录下）
-cd ../turntf && docker build -t turntf:local . && cd -
-
 # 启动全部服务
 docker compose -f docker-compose.full.yml up -d
 ```

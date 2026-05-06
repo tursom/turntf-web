@@ -146,8 +146,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     if (client == null) {
       throw new Error(statusText ?? "实时连接未建立");
     }
-    return client.sendMessage(target, body);
-  }, [statusText]);
+    const msg = await client.sendMessage(target, body);
+    pushMessage(msg);
+    return msg;
+  }, [statusText, pushMessage]);
 
   const value = useMemo<ChatContextValue>(
     () => ({ connected, messages, clearMessages, sendMessage, statusText }),
