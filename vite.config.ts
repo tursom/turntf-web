@@ -1,13 +1,19 @@
+import { existsSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+
+const localSdkEntry = path.resolve(__dirname, "../../sdk/turntf-web-sdk/src/index.ts");
+const sdkAlias = existsSync(localSdkEntry)
+  ? { "@tursom/turntf-web-sdk": localSdkEntry }
+  : {};
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
-      "@tursom/turntf-web-sdk": path.resolve(__dirname, "../../sdk/turntf-web-sdk/src/index.ts"),
+      ...sdkAlias,
     },
   },
   server: {
