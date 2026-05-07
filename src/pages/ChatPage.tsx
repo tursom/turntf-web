@@ -62,11 +62,23 @@ export function ChatPage() {
   const histKeys = new Set(history.map((m) => messageKey(m)));
   const dedupedLive = liveMessages.filter((live) => !histKeys.has(messageKey(live)));
   const liveKeys = new Set(dedupedLive.map((m) => messageKey(m)));
-  const all = [
+  const raw = [
     ...[...history].reverse(),
     ...dedupedLive,
     ...sentMessages.filter((s) => !histKeys.has(messageKey(s)) && !liveKeys.has(messageKey(s))),
   ];
+
+  // 最终去重：使用与 ChatWindow 相同的 key（`nodeId-seq`），
+  // 防止 history / live / sent 三个来源中出现相同消息导致 React duplicate key 警告
+  const chatKey = (m: Message) => `${m.nodeId}-${m.recipient.userId}-${m.seq}`;
+  const all = (() => {
+    const seen = new Map<string, Message>();
+    for (const msg of raw) {
+      const key = chatKey(msg);
+      if (!seen.has(key)) seen.set(key, msg);
+    }
+    return [...seen.values()];
+  })();
 
   return (
     <Layout style={{ height: "calc(100vh - 56px - 48px)", background: "#fff", borderRadius: 8, overflow: "hidden" }}>

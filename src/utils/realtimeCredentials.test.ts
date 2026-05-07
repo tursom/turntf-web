@@ -81,6 +81,6 @@ describe("realtime credentials", () => {
 describe("message keys", () => {
   it("produces stable keys for deduplication", () => {
     expect(messageKeyStr(4096, 7)).toBe("4096:7");
-    expect(messageKey({ nodeId: "4096", seq: "7" })).toBe("4096:7");
+    expect(messageKey({ nodeId: "4096", seq: "7", recipient: { nodeId: "4096", userId: "1025" } })).toBe("4096:1025:7");
   });
 });

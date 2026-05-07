@@ -46,6 +46,6 @@ export function messageKeyStr(nodeId: number | string, seq: number | string): st
   return `${idToStr(nodeId)}:${idToStr(seq)}`;
 }
 
-export function messageKey(message: Pick<Message, "nodeId" | "seq">): string {
-  return messageKeyStr(message.nodeId, message.seq);
+export function messageKey(message: Pick<Message, "nodeId" | "seq" | "recipient">): string {
+  return `${idToStr(message.nodeId)}:${idToStr(message.recipient.userId)}:${idToStr(message.seq)}`;
 }
