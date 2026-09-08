@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useEffect, useMemo, useRef, useState
 import { useLocation, useNavigate } from "react-router-dom";
 import { hashedPassword } from "@tursom/turntf-web-sdk";
 import { isAdminRole, STORAGE_KEYS } from "@/utils/constants";
+import { clearAuthSession, readAuthSession, storeAuthSession } from "@/utils/authStorage";
 import { onUnauthorized } from "@/utils/authEvents";
 import { login as apiLogin, loginByLoginName as apiLoginByLoginName } from "@/api/auth";
 import {
@@ -17,6 +18,7 @@ export interface AuthState {
   user: AuthUser | null;
   isAdmin: boolean;
   loading: boolean;
+  discardLegacyRedirect?: boolean;
 }
 
 export interface AuthContextValue extends AuthState {
@@ -45,8 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   });
 
   const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_KEYS.Token);
-    localStorage.removeItem(STORAGE_KEYS.User);
+    clearAuthSession();
     clearRealtimePassword();
     setRealtimeCredentialVersion((value) => value + 1);
     setState({ token: null, user: null, isAdmin: false, loading: false });
@@ -61,32 +62,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [logout, navigate]);
 
   useEffect(() => {
-    const token = localStorage.getItem(STORAGE_KEYS.Token);
-    const userStr = localStorage.getItem(STORAGE_KEYS.User);
-    if (token && userStr) {
-      try {
-        const user = normalizeStoredUser(JSON.parse(userStr));
-        setState({
-          token,
-          user,
-          isAdmin: isAdminRole(user.role),
-          loading: false,
-        });
-        return;
-      } catch {
-        localStorage.removeItem(STORAGE_KEYS.Token);
-        localStorage.removeItem(STORAGE_KEYS.User);
-      }
+    const hadCachedSession = localStorage.getItem(STORAGE_KEYS.Token) != null;
+    const session = readAuthSession();
+    if (session) {
+      setState({ ...session, isAdmin: isAdminRole(session.user.role), loading: false });
+      return;
     }
-    setState((s) => ({ ...s, loading: false }));
+    clearRealtimePassword();
+    setState({ token: null, user: null, isAdmin: false, loading: false, discardLegacyRedirect: hadCachedSession });
   }, []);
 
   const login = useCallback(
     async (nodeId: string, userId: string, password: string): Promise<LoginResult> => {
       const resp = await apiLogin(nodeId, userId, password);
       const user: AuthUser = resp.user;
-      localStorage.setItem(STORAGE_KEYS.Token, resp.token);
-      localStorage.setItem(STORAGE_KEYS.User, JSON.stringify(user));
+      storeAuthSession(resp.token, user);
       storeRealtimePassword(hashedPassword(resp.wirePasswordEncoded));
       setRealtimeCredentialVersion((value) => value + 1);
       setState({
@@ -104,8 +94,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (loginName: string, password: string): Promise<LoginResult> => {
       const resp = await apiLoginByLoginName(loginName, password);
       const user: AuthUser = resp.user;
-      localStorage.setItem(STORAGE_KEYS.Token, resp.token);
-      localStorage.setItem(STORAGE_KEYS.User, JSON.stringify(user));
+      storeAuthSession(resp.token, user);
       storeRealtimePassword(hashedPassword(resp.wirePasswordEncoded));
       setRealtimeCredentialVersion((value) => value + 1);
       setState({
@@ -138,15 +127,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-function normalizeStoredUser(value: unknown): AuthUser {
-  const object = (value ?? {}) as Record<string, unknown>;
-  return {
-    nodeId: String(object.nodeId ?? object.node_id ?? ""),
-    userId: String(object.userId ?? object.user_id ?? ""),
-    username: String(object.username ?? ""),
-    loginName: String(object.loginName ?? object.login_name ?? ""),
-    role: String(object.role ?? ""),
-  };
 }

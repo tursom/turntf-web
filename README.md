@@ -34,7 +34,7 @@ npm run server
 
 默认使用package-lock锁定的npm SDK。CI和单元测试不自动使用monorepo下的SDK源码，避免本地支持新协议而发布镜像仍包含旧SDK。确需联合开发时，可以显式运行 `TURNTF_USE_LOCAL_SDK=1 npm run dev`；该选项要求现有 `../../sdk/turntf-web-sdk/src/index.ts` 路径，不应用于生产镜像构建。
 
-生产入口必须使用HTTPS/WSS保护密码传输。登录响应使用无损JSON解析器保留64位ID；实时登录密码仅存在当前页面内存，退出时清理，刷新后通过现有重新认证流程恢复实时连接，不再写入sessionStorage。
+生产入口必须使用HTTPS/WSS保护密码传输。登录、用户列表和会话引用使用无损JSON解析器保留64位ID；旧登录缓存一次性失效并丢弃可能包含舍入ID的旧详情跳转，新登录只缓存经校验的字符串身份。实时登录密码仅存在当前页面内存，退出时清理，刷新后通过现有重新认证流程恢复实时连接，不再写入sessionStorage。
 
 ```bash
 npm test -- --run  # 包括真实HTTP/WS代理、登录精度和协议版本回归

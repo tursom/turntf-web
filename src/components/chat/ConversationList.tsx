@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { List, Typography, Badge, Button, Space, Segmented, Spin, Empty } from "antd";
 import { PlusOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
+import { parseJson } from "@tursom/turntf-web-sdk";
 import type { UserRef } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
@@ -46,7 +47,7 @@ export function ConversationList({ onSelect, selectedTarget }: Props) {
     const client = getHTTPClient();
     Promise.all([
       client.getUserMetadata(token, user, "conversations").then((meta) => {
-        const list = JSON.parse(decodeText(meta.value));
+        const list = parseJson(decodeText(meta.value));
         if (Array.isArray(list) && list.length > 0) return list as Conversation[];
         return [];
       }).catch(() => [] as Conversation[]),

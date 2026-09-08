@@ -1,5 +1,5 @@
 import type { User } from "@/types";
-import { hashedPassword } from "@tursom/turntf-web-sdk";
+import { hashedPassword, parseJson } from "@tursom/turntf-web-sdk";
 import { jsonToBytes } from "@/utils/text";
 import { getApiUrl, getHTTPClient } from "./client";
 import { wrappedFetch } from "./fetchWrapper";
@@ -14,7 +14,7 @@ function authHeaders(token: string): Record<string, string> {
 export async function listUsers(token: string): Promise<User[]> {
   const resp = await wrappedFetch(`${getApiUrl()}/users`, { headers: authHeaders(token) });
   if (!resp.ok) throw new Error(await resp.text());
-  const data = await resp.json();
+  const data = parseJson(await resp.text()) as Record<string, unknown>[] | { items?: Record<string, unknown>[] };
   const items = Array.isArray(data) ? data : (data.items ?? []);
   return items.map(mapUserFromHttp);
 }

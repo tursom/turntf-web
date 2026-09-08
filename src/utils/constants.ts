@@ -25,6 +25,7 @@ export const ROUTES = {
 
 export const STORAGE_KEYS = {
   Token: "turntf_auth_token",
+  AuthSchema: "turntf_auth_schema",
   User: "turntf_auth_user",
   RealtimePassword: "turntf_realtime_password",
 } as const;
