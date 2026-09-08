@@ -1,92 +1,92 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useCallback, useReducer, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Layout } from "antd";
-import type { UserRef, Message } from "@/types";
+import { Grid, Layout } from "antd";
+import type { UserRef } from "@/types";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { ChatWindow } from "@/components/chat/ChatWindow";
+import { emptySession, mergeMessages, sessionsReducer } from "@/components/chat/chatSession";
 import { useAuth } from "@/hooks/useAuth";
 import { useChat } from "@/hooks/useChat";
 import { listMessages } from "@/api/messages";
 import { encodeText } from "@/utils/text";
-import { idToStr, messageKey } from "@/utils/format";
+import { idToStr, userKeyStr } from "@/utils/format";
 
 export function ChatPage() {
+  const { token, user } = useAuth();
+  // 认证身份变化时销毁会话状态，旧异步任务只持有旧组件的 dispatch。
+  return <ChatWorkspace key={JSON.stringify([token, user?.nodeId, user?.userId])} />;
+}
+
+function ChatWorkspace() {
   const { nodeId, userId } = useParams<{ nodeId?: string; userId?: string }>();
   const { token, user } = useAuth();
   const { connected, messages, sendMessage, statusText } = useChat();
-  const [selectedTarget, setSelectedTarget] = useState<UserRef | null>(null);
-  const [history, setHistory] = useState<Message[]>([]);
-  const [sentMessages, setSentMessages] = useState<Message[]>([]);
+  const [sessions, dispatch] = useReducer(sessionsReducer, {});
+  const requestRef = useRef(0);
+  const pendingSends = useRef(new Set<string>());
   const navigate = useNavigate();
+  const screens = Grid.useBreakpoint();
+  const narrow = !screens.md;
+  const selectedTarget: UserRef | null = nodeId && userId ? { nodeId, userId } : null;
+  const key = selectedTarget ? userKeyStr(selectedTarget.nodeId, selectedTarget.userId) : "";
+  const session = sessions[key] ?? emptySession;
 
-  useEffect(() => {
-    if (nodeId && userId) setSelectedTarget({ nodeId, userId });
-  }, [nodeId, userId]);
+  const loadHistory = useCallback(() => {
+    if (!nodeId || !userId || !token) return;
+    const request = ++requestRef.current;
+    const key = userKeyStr(nodeId, userId);
+    dispatch({ key, type: "historyStart", request });
+    void listMessages(token, "0", "0", 50, nodeId, userId).then(
+      (messages) => dispatch({ key, type: "historySuccess", request, messages }),
+      () => dispatch({ key, type: "historyError", request }),
+    );
+  }, [nodeId, userId, token]);
 
-  useEffect(() => {
-    setHistory([]);
-    setSentMessages([]);
-    if (!selectedTarget || !token) return;
-    void listMessages(
-      token,
-      "0",
-      "0",
-      50,
-      idToStr(selectedTarget.nodeId),
-      idToStr(selectedTarget.userId),
-    ).then(setHistory).catch(() => setHistory([]));
-  }, [selectedTarget, token]);
+  useEffect(loadHistory, [loadHistory]);
 
   const handleSelect = useCallback((target: UserRef) => {
     navigate(`/chat/${idToStr(target.nodeId)}/${idToStr(target.userId)}`);
   }, [navigate]);
 
-  const handleSend = useCallback(async (text: string) => {
-    if (!selectedTarget) return;
-    const msg = await sendMessage(selectedTarget, encodeText(text));
-    setSentMessages((prev) => {
-      if (prev.some((m) => messageKey(m) === messageKey(msg))) return prev;
-      return [...prev, msg];
-    });
-  }, [selectedTarget, sendMessage]);
+  const handleSend = async () => {
+    const draft = session.draft;
+    if (!selectedTarget || !draft.trim() || !connected || pendingSends.current.has(key)) return;
+    pendingSends.current.add(key);
+    dispatch({ key, type: "sendStart" });
+    try {
+      const message = await sendMessage(selectedTarget, encodeText(draft.trim()));
+      dispatch({ key, type: "sendSuccess", message, draft });
+    } catch (error) {
+      dispatch({ key, type: "sendError", error: error instanceof Error ? error.message : "请稍后重试" });
+    } finally {
+      pendingSends.current.delete(key);
+    }
+  };
 
   const liveMessages = messages.filter((msg) => {
     if (!selectedTarget || !user) return false;
-    const tk = `${idToStr(selectedTarget.nodeId)}:${idToStr(selectedTarget.userId)}`;
-    const sk = `${idToStr(msg.sender.nodeId)}:${idToStr(msg.sender.userId)}`;
-    const rk = `${idToStr(msg.recipient.nodeId)}:${idToStr(msg.recipient.userId)}`;
-    const mk = `${user.nodeId}:${user.userId}`;
-    return sk === tk || (sk === mk && rk === tk);
+    const sender = userKeyStr(msg.sender.nodeId, msg.sender.userId);
+    const recipient = userKeyStr(msg.recipient.nodeId, msg.recipient.userId);
+    const own = userKeyStr(user.nodeId, user.userId);
+    return sender === key || (sender === own && recipient === key);
   });
-
-  const histKeys = new Set(history.map((m) => messageKey(m)));
-  const dedupedLive = liveMessages.filter((live) => !histKeys.has(messageKey(live)));
-  const liveKeys = new Set(dedupedLive.map((m) => messageKey(m)));
-  const raw = [
-    ...[...history].reverse(),
-    ...dedupedLive,
-    ...sentMessages.filter((s) => !histKeys.has(messageKey(s)) && !liveKeys.has(messageKey(s))),
-  ];
-
-  // 最终去重：使用与 ChatWindow 相同的 key（`nodeId-seq`），
-  // 防止 history / live / sent 三个来源中出现相同消息导致 React duplicate key 警告
-  const chatKey = (m: Message) => `${m.nodeId}-${m.recipient.userId}-${m.seq}`;
-  const all = (() => {
-    const seen = new Map<string, Message>();
-    for (const msg of raw) {
-      const key = chatKey(msg);
-      if (!seen.has(key)) seen.set(key, msg);
-    }
-    return [...seen.values()];
-  })();
+  const all = mergeMessages([...session.history].reverse(), liveMessages, session.sent);
 
   return (
-    <Layout style={{ height: "calc(100vh - 56px - 48px)", background: "#fff", borderRadius: 8, overflow: "hidden" }}>
-      <Layout.Sider width={280} style={{ background: "#fff", borderRight: "1px solid #f0f0f0" }}>
+    <Layout style={{ height: narrow ? "calc(100dvh - 56px - 24px)" : "calc(100dvh - 56px - 48px)", minWidth: 0, background: "#fff", borderRadius: 8, overflow: "hidden" }}>
+      <Layout.Sider width={narrow ? "100%" : 280} style={{ display: narrow && selectedTarget ? "none" : undefined, background: "#fff", borderRight: "1px solid #f0f0f0" }}>
         <ConversationList onSelect={handleSelect} selectedTarget={selectedTarget} />
       </Layout.Sider>
-      <Layout.Content>
-        <ChatWindow messages={all} target={selectedTarget} onSend={handleSend} connected={connected} statusText={statusText} />
+      <Layout.Content style={{ display: narrow && !selectedTarget ? "none" : undefined, minWidth: 0, minHeight: 0 }}>
+        <ChatWindow
+          key={key}
+          messages={all} target={selectedTarget} onSend={handleSend}
+          connected={connected} statusText={statusText}
+          historyStatus={session.historyStatus} onRetryHistory={loadHistory}
+          draft={session.draft} onDraftChange={(text) => dispatch({ key, type: "draft", text })}
+          sending={session.sending} sendError={session.sendError} sendVersion={session.sendVersion}
+          onBack={narrow ? () => navigate("/chat") : undefined}
+        />
       </Layout.Content>
     </Layout>
   );

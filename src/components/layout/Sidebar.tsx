@@ -1,4 +1,4 @@
-import { Layout, Menu } from "antd";
+import { Drawer, Layout, Menu } from "antd";
 import {
   DashboardOutlined,
   UserOutlined,
@@ -14,7 +14,7 @@ import type { MenuProps } from "antd";
 
 type MenuItem = Required<MenuProps>["items"][number];
 
-export function Sidebar() {
+export function Sidebar({ compact, open, onClose }: { compact: boolean; open: boolean; onClose: () => void }) {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -64,15 +64,25 @@ export function Sidebar() {
     ? [...chatItems, { type: "divider" }, ...adminItems]
     : chatItems;
 
-  const selectedKey = location.pathname.startsWith("/admin")
-    ? location.pathname
-    : "/" + location.pathname.split("/")[1] || "chat";
+  const selectedKey = location.pathname.startsWith("/admin/users") || location.pathname.startsWith("/admin/messages")
+    ? "/admin/users"
+    : location.pathname.startsWith("/chat") ? "/chat" : location.pathname;
+
+  const menu = (
+    <Menu theme="light" mode="inline" selectedKeys={[selectedKey]} items={allItems}
+      onClick={({ key }) => { navigate(key); onClose(); }} style={{ borderRight: 0 }} />
+  );
+
+  if (compact) {
+    return <Drawer title="turntf" placement="left" width={240} open={open} onClose={onClose} styles={{ body: { padding: "12px 0" } }}>{menu}</Drawer>;
+  }
 
   return (
     <Layout.Sider
       width={220}
       style={{
-        background: "#001529",
+        background: "#fff",
+        borderRight: "1px solid #e8e8e8",
         overflow: "auto",
         height: "100vh",
         position: "fixed",
@@ -88,23 +98,16 @@ export function Sidebar() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          color: "#fff",
+          color: "#202124",
           fontSize: 20,
           fontWeight: 700,
-          letterSpacing: 2,
-          borderBottom: "1px solid rgba(255,255,255,0.1)",
+          letterSpacing: 0,
+          borderBottom: "1px solid #e8e8e8",
         }}
       >
         turntf
       </div>
-      <Menu
-        theme="dark"
-        mode="inline"
-        selectedKeys={[selectedKey]}
-        items={allItems}
-        onClick={({ key }) => navigate(key)}
-        style={{ borderRight: 0 }}
-      />
+      {menu}
     </Layout.Sider>
   );
 }

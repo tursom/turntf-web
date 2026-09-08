@@ -1,5 +1,6 @@
-import { Layout, Dropdown, Button, Space } from "antd";
+import { Layout, Dropdown, Button, Space, Tooltip } from "antd";
 import {
+  MenuOutlined,
   UserOutlined,
   LogoutOutlined,
   SettingOutlined,
@@ -7,7 +8,7 @@ import {
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 
-export function Header() {
+export function Header({ compact, onOpenNavigation }: { compact: boolean; onOpenNavigation: () => void }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -33,19 +34,23 @@ export function Header() {
     <Layout.Header
       style={{
         background: "#fff",
-        padding: "0 24px",
+        padding: compact ? "0 12px" : "0 24px",
         display: "flex",
-        justifyContent: "flex-end",
+        justifyContent: "space-between",
         alignItems: "center",
         borderBottom: "1px solid #f0f0f0",
         height: 56,
       }}
     >
-      <Dropdown menu={items} placement="bottomRight">
-        <Button type="text">
+      <Space>
+        {compact && <Tooltip title="打开导航"><Button type="text" icon={<MenuOutlined />} aria-label="打开导航" onClick={onOpenNavigation} /></Tooltip>}
+        {compact && <strong>turntf</strong>}
+      </Space>
+      <Dropdown menu={items} placement="bottomRight" trigger={["click"]}>
+        <Button type="text" style={{ maxWidth: compact ? "60%" : 320, overflow: "hidden" }} aria-label="账户菜单">
           <Space>
             <UserOutlined />
-            {user?.username ?? "用户"}
+            <span style={{ display: "inline-block", maxWidth: compact ? 140 : 240, overflow: "hidden", textOverflow: "ellipsis", verticalAlign: "bottom" }}>{user?.username ?? "用户"}</span>
           </Space>
         </Button>
       </Dropdown>

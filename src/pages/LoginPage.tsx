@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Form, Input, Button, Card, Typography, Segmented, message } from "antd";
 import { UserOutlined, LockOutlined, NumberOutlined, IdcardOutlined } from "@ant-design/icons";
@@ -12,6 +12,8 @@ export function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [form] = Form.useForm();
+  const [submitting, setSubmitting] = useState(false);
+  const pending = useRef(false);
   const [loginMode, setLoginMode] = useState<"id" | "loginName">("id");
 
   const onFinish = async (values: {
@@ -20,6 +22,9 @@ export function LoginPage() {
     loginName?: string;
     password: string;
   }) => {
+    if (pending.current) return;
+    pending.current = true;
+    setSubmitting(true);
     try {
       let resp: LoginResult;
       if (loginMode === "loginName") {
@@ -37,20 +42,24 @@ export function LoginPage() {
       }
     } catch (err) {
       message.error(err instanceof Error ? err.message : "登录失败");
+    } finally {
+      pending.current = false;
+      setSubmitting(false);
     }
   };
 
   return (
     <div
       style={{
-        minHeight: "100vh",
+        minHeight: "100dvh",
+        padding: 16,
         display: "flex",
         justifyContent: "center",
         alignItems: "center",
-        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        background: "#f6f7f8",
       }}
     >
-      <Card style={{ width: 400, boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
+      <Card style={{ width: "100%", maxWidth: 400 }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <Title level={2} style={{ marginBottom: 4 }}>
             turntf
@@ -59,6 +68,7 @@ export function LoginPage() {
         </div>
 
         <Segmented
+          disabled={submitting}
           block
           options={[
             { label: "ID 登录", value: "id" },
@@ -72,26 +82,26 @@ export function LoginPage() {
           style={{ marginBottom: 24 }}
         />
 
-        <Form form={form} layout="vertical" onFinish={onFinish} size="large">
+        <Form form={form} layout="vertical" onFinish={onFinish} size="large" disabled={submitting}>
           {loginMode === "id" ? (
             <>
               <Form.Item name="nodeId" initialValue="1" rules={[{ required: true, message: "请输入节点 ID" }]}>
-                <Input prefix={<NumberOutlined />} placeholder="节点 ID (默认 1)" />
+                <Input prefix={<NumberOutlined />} aria-label="节点 ID" inputMode="numeric" placeholder="节点 ID (默认 1)" />
               </Form.Item>
               <Form.Item name="userId" initialValue="1" rules={[{ required: true, message: "请输入用户 ID" }]}>
-                <Input prefix={<UserOutlined />} placeholder="用户 ID (默认 1)" />
+                <Input prefix={<UserOutlined />} aria-label="用户 ID" inputMode="numeric" placeholder="用户 ID (默认 1)" />
               </Form.Item>
             </>
           ) : (
             <Form.Item name="loginName" rules={[{ required: true, message: "请输入登录名" }]}>
-              <Input prefix={<IdcardOutlined />} placeholder="登录名" />
+              <Input prefix={<IdcardOutlined />} aria-label="登录名" autoComplete="username" placeholder="登录名" />
             </Form.Item>
           )}
           <Form.Item name="password" rules={[{ required: true, message: "请输入密码" }]}>
-            <Input.Password prefix={<LockOutlined />} placeholder="密码" />
+            <Input.Password prefix={<LockOutlined />} aria-label="密码" autoComplete="current-password" placeholder="密码" />
           </Form.Item>
           <Form.Item>
-            <Button type="primary" htmlType="submit" block>
+            <Button type="primary" htmlType="submit" block loading={submitting}>
               登录
             </Button>
           </Form.Item>
