@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 const localSdkEntry = path.resolve(__dirname, "../../sdk/turntf-web-sdk/src/index.ts");
-const sdkAlias = existsSync(localSdkEntry)
+const sdkAlias: Record<string, string> = process.env.TURNTF_USE_LOCAL_SDK === "1" && existsSync(localSdkEntry)
   ? { "@tursom/turntf-web-sdk": localSdkEntry }
   : {};
 

@@ -1,3 +1,4 @@
+import { parseJson } from "@tursom/turntf-web-sdk";
 import type { AuthUser, LoginResult } from "@/types";
 import { createRealtimePassword } from "@/utils/realtimeCredentials";
 import { getApiUrl, getHTTPClient } from "./client";
@@ -52,7 +53,8 @@ export async function loginByLoginName(
     throw new Error(text || "登录失败");
   }
 
-  const data: Record<string, unknown> = JSON.parse(text);
+  // 服务端以 JSON number 返回 int64，必须在转换为字符串前无损解析。
+  const data = parseJson(text) as Record<string, unknown>;
   const token = data.token;
   if (typeof token !== "string" || token === "") {
     throw new Error("登录响应中缺少 token");

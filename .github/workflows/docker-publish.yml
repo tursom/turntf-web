@@ -34,8 +34,25 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Run regression tests
+        run: npm test -- --run
+
       - name: Type check and build
         run: npm run build
+
+      - name: Verify offline image startup
+        run: |
+          docker build -t turntf-web:verify .
+          trap 'docker rm -f turntf-web-startup >/dev/null 2>&1 || true' EXIT
+          docker run -d --network none --name turntf-web-startup turntf-web:verify
+          for attempt in $(seq 1 15); do
+            if docker exec turntf-web-startup node --input-type=module -e 'const r = await fetch("http://127.0.0.1:3100/"); if (!r.ok || !r.headers.get("content-type")?.includes("text/html")) process.exit(1);'; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs turntf-web-startup
+          exit 1
 
   docker:
     needs: verify

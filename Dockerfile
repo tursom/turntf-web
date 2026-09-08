@@ -9,7 +9,7 @@ RUN npm ci
 
 COPY . .
 
-RUN npm run build
+RUN npm run build && npm prune --omit=dev --ignore-scripts --offline --no-audit --no-fund
 
 FROM node:22-alpine
 
@@ -17,7 +17,7 @@ WORKDIR /app
 
 COPY --from=builder /src/package.json /src/package-lock.json ./
 
-RUN npm ci --omit=dev && npm cache clean --force
+COPY --from=builder /src/node_modules ./node_modules
 
 COPY --from=builder /src/dist ./dist
 COPY --from=builder /src/server ./server
@@ -29,4 +29,4 @@ ENV SERVER_HOST=0.0.0.0
 ENV SERVER_PORT=3100
 ENV TURNTF_BACKEND_URL=http://localhost:8080
 
-ENTRYPOINT ["npx", "tsx", "server/index.ts"]
+ENTRYPOINT ["./node_modules/.bin/tsx", "server/index.ts"]

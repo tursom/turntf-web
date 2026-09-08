@@ -9,7 +9,7 @@ turntf 分布式通知服务的管理平台 Web 应用，提供实时的聊天�
 | 前端框架 | React + TypeScript | ^18.3 / ~5.6 |
 | 构建工具 | Vite | ^6.0 |
 | UI 组件库 | Ant Design (antd) | ^5.24 |
-| 路由 | react-router-dom | ^7.5 |
+| 路由 | react-router-dom | ^7.18 |
 | 数据请求 | @tanstack/react-query | ^5.60 |
 | 服务端 | Express | ^5.1 |
 | 代理 | http-proxy-middleware | ^3.0 |
@@ -28,6 +28,17 @@ npm start
 
 # 仅启动 Express 服务（需要先 build）
 npm run server
+```
+
+## 构建一致性
+
+默认使用package-lock锁定的npm SDK。CI和单元测试不自动使用monorepo下的SDK源码，避免本地支持新协议而发布镜像仍包含旧SDK。确需联合开发时，可以显式运行 `TURNTF_USE_LOCAL_SDK=1 npm run dev`；该选项要求现有 `../../sdk/turntf-web-sdk/src/index.ts` 路径，不应用于生产镜像构建。
+
+生产入口必须使用HTTPS/WSS保护密码传输。登录响应使用无损JSON解析器保留64位ID；实时登录密码仅存在当前页面内存，退出时清理，刷新后通过现有重新认证流程恢复实时连接，不再写入sessionStorage。
+
+```bash
+npm test -- --run  # 包括真实HTTP/WS代理、登录精度和协议版本回归
+npm run build     # 前端与Express服务类型检查、Vite生产构建
 ```
 
 ## Docker 部署
@@ -120,8 +131,8 @@ docker compose up -d
 services:
   turntf:
     image: ghcr.io/tursom/turntf:latest
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     volumes:
       - ./config.toml:/app/config.toml:ro
       - ./data:/app/data
@@ -130,7 +141,7 @@ services:
   turntf-web:
     image: ghcr.io/tursom/turntf-web:latest
     ports:
-      - "3100:3100"
+      - "8080:3100"
     environment:
       - TURNTF_BACKEND_URL=http://turntf:8080
     depends_on:
@@ -143,14 +154,25 @@ services:
 docker compose -f docker-compose.full.yml up -d
 ```
 
+### 同端口入口
+
+联合部署时，只有 turntf-web 发布宿主机端口。浏览器页面、`/api/*` 和原有 turntf API/WebSocket 共用该入口，Go 服务仅通过 Docker 内网的 `turntf:8080` 访问。现有部署切换时，应将宿主机端口映射从 Go 容器移到 Web 容器，不能让两个容器同时绑定同一地址端口。
+
+- `/api/*` 去掉一次 `/api` 后转发，包含 `/api/ws/client`。
+- 原始 `/auth/*`、`/users`、`/nodes/*`、`/cluster/*`、`/events`、`/ops/*`、`/metrics`、`/healthz` 路径继续转发，不要求现有SDK改地址。
+- `/ws/client`、`/ws/realtime` 和 `/internal/cluster/ws` 原样转发二进制WebSocket流；原有集群peer URL不变。
+- `/login`、`/chat`、`/admin/*` 等页面仍走SPA。上游失败返回502，不回退为页面。
+- 生产镜像包含启动所需的tsx，直接执行镜像内二进制，不在启动时联网安装依赖。部署应固定已验证镜像digest。
+
 ### 验证部署
 
 ```bash
-curl http://localhost:3100/          # 返回 SPA 页面
-curl http://localhost:3100/api/healthz  # 透传到后端的健康检查
+curl http://localhost:8080/             # 联合部署返回 SPA 页面
+curl http://localhost:8080/api/healthz  # Web API 前缀
+curl http://localhost:8080/healthz      # 原始 API 入口仍可用
 ```
 
-打开浏览器访问 `http://localhost:3100`，使用有效的 turntf 账号登录。
+联合部署打开 `http://localhost:8080`，单独部署按映射端口访问，使用有效的 turntf 账号登录。
 
 ## 项目结构
 
@@ -199,9 +221,10 @@ turntf-web/
 
 ```
 浏览器 ←→ Express (:3100)
-              ├── /api/* → 代理转发 → turntf 后端 (:8080)
-              ├── 其他路径 → dist/ 静态文件（SPA）
-              └── WebSocket upgrade → 升级转发到 turntf 后端
+              ├── /api/* → 去前缀代理 → turntf 后端 (:8080)
+              ├── 原始 API/集群路径 → 原样代理 → turntf 后端
+              ├── 页面路径 → dist/ 静态文件（SPA）
+              └── 受支持的 WebSocket 路径 → 升级转发到 turntf 后端
 ```
 
 - **开发模式**：Vite 开发服务器 (:5173) 自身代理 `/api` 到后端，并转发聊天长连接 `/api/ws/client`
