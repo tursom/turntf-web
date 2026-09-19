@@ -2,7 +2,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 import type { Express } from "express";
 import { ServerResponse } from "node:http";
 
-const backendRoots = ["/api", "/auth", "/users", "/nodes", "/cluster", "/events", "/ops", "/metrics", "/healthz", "/internal", "/ws"];
+const backendRoots = ["/api", "/auth", "/users", "/nodes", "/cluster", "/events", "/ops", "/metrics", "/healthz", "/internal", "/ws", "/kv"];
 
 export function isBackendPath(url: string): boolean {
   const pathname = url.split("?", 1)[0];
