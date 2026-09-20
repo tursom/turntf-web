@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Raft 数据库 · turntf 页面原型</title>
+<style>
+:root{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#202124;background:#f6f7f8;font-size:14px}*{box-sizing:border-box}body{margin:0}button,input,select,textarea{font:inherit}button{cursor:pointer;background:white;border:1px solid #d9d9d9;border-radius:6px;padding:8px 14px;color:#30343b}button:hover{border-color:#1677ff;color:#1677ff}button.primary{background:#1677ff;color:white;border-color:#1677ff}button:disabled{opacity:.45;cursor:not-allowed}input,select{border:1px solid #d9d9d9;border-radius:6px;padding:9px 11px;background:white;min-width:0}input:focus,textarea:focus,select:focus{outline:2px solid #b7d7ff;outline-offset:1px}aside{width:220px;background:white;border-right:1px solid #e8e8e8;position:fixed;inset:0 auto 0 0;padding:0 12px}.logo{height:56px;display:flex;align-items:center;padding-left:24px;font-size:21px;font-weight:700;border-bottom:1px solid #eee;margin-bottom:16px}.nav{padding:12px 16px;margin:4px 0;color:#626770;border-radius:6px}.nav.active{background:#e6f4ff;color:#1677ff}.divider{height:1px;background:#eee;margin:16px 0}header{margin-left:220px;height:56px;background:white;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;padding:0 28px}main{margin-left:220px;padding:28px;max-width:1660px}.muted{color:#7a818c;font-size:13px}.heading{display:flex;justify-content:space-between;align-items:center;gap:16px}h1{font-size:25px;margin:0 0 9px}h2{font-size:16px;margin:0}p{line-height:1.7}.badge{background:#fff7e6;border:1px solid #ffe2a6;border-radius:5px;color:#9b6600;padding:4px 9px;font-size:12px}.banner{background:#eaf4ff;border:1px solid #cce4ff;border-radius:7px;padding:11px 15px;margin:20px 0;color:#305d89;line-height:1.6}.card{background:white;border:1px solid #e5e7eb;border-radius:8px}.connect{padding:18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}.connect input{width:230px}.workspace{display:grid;grid-template-columns:minmax(270px,36%) minmax(0,1fr);margin-top:20px;min-height:525px;overflow:hidden}.keys{border-right:1px solid #e5e7eb}.panel-head{padding:18px 20px;border-bottom:1px solid #eee;display:flex;align-items:center;justify-content:space-between;gap:10px}.filter{padding:16px 20px}.filter input{width:100%}.key{display:block;width:100%;border:0;border-radius:0;text-align:left;padding:16px 20px;border-top:1px solid #f0f1f3}.key.selected{background:#eaf4ff;box-shadow:inset 3px 0 #1677ff}.key code{font-size:13px;display:block;overflow-wrap:anywhere;margin-bottom:7px}.key small{color:#8a9099}.detail{min-width:0}.editor{padding:20px}.key-title{display:block;font-size:16px;overflow-wrap:anywhere;margin:0 0 14px}.meta{display:flex;gap:20px;flex-wrap:wrap;font-size:12px;color:#7a818c;margin-bottom:24px}.toolbar{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:12px}textarea{width:100%;resize:vertical;min-height:220px;padding:16px;font:14px/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;border:1px solid #dce0e5;border-radius:6px;background:#fbfcfe;tab-size:2}.actions{margin-top:18px;display:flex;justify-content:space-between;align-items:center;gap:12px}.actions div{display:flex;gap:8px;align-items:center}.error{background:#fff2e8;color:#a64913;padding:12px;border:1px solid #ffd8bf;border-radius:6px;margin:12px 0;line-height:1.7}.hidden{display:none!important}.footnote{margin-top:16px;font-size:12px;color:#868c96;line-height:1.8}.demo{padding:18px 20px;margin-top:20px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}.toast{position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#202a39;color:white;padding:12px 22px;border-radius:7px;z-index:5;box-shadow:0 4px 20px #0002}dialog{border:1px solid #ddd;border-radius:10px;width:min(480px,90vw);padding:24px;box-shadow:0 20px 80px #0003}dialog::backdrop{background:#0005}dialog label{display:block;margin:18px 0 8px}dialog input{width:100%}dialog .actions{justify-content:flex-end}.empty{padding:40px 20px;color:#88909c;text-align:center}#newKey{width:100%;margin-bottom:16px}@media(max-width:900px){aside{width:170px}header,main{margin-left:170px}main{padding:18px}.workspace{grid-template-columns:1fr}.keys{border-right:0;border-bottom:1px solid #eee}#list{max-height:210px;overflow:auto}}@media(max-width:600px){aside{display:none}header,main{margin-left:0}header{padding:0 16px}main{padding:16px}.heading{align-items:flex-start}.connect input{flex:1;width:120px}.actions{flex-wrap:wrap}.meta{gap:10px}}
+.selectors{display:grid;grid-template-columns:1fr 1fr;gap:16px;padding:14px 18px;margin-bottom:16px}.picker{position:relative;min-width:0}.picker summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:12px;padding:10px 12px;border:1px solid #d9d9d9;border-radius:6px}.picker summary::-webkit-details-marker{display:none}.picker summary::after{content:'⌄';margin-left:auto;color:#8a9099}.picker summary strong{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.picker[open] summary{border-color:#1677ff}.picker-popover{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:4;background:white;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 8px 28px #0002;overflow:hidden}.picker-popover .filter{padding:12px}.picker-popover .key{padding:12px 16px}.picker-popover .empty{padding:24px 16px}.picker-popover .panel-head{padding:10px 12px}.picker-popover h2{font-size:13px;font-weight:500}.picker-results{max-height:240px;overflow:auto}.banner{margin:14px 0;font-size:13px}.workspace{margin-top:14px}.connect{padding:10px 16px}.connect #manageACL{margin-left:auto}@media(max-width:600px){.selectors{grid-template-columns:1fr;gap:10px;padding:12px}.picker-popover{z-index:5}}
+</style>
+</head>
+<body>
+<aside><div class="logo">turntf</div><div class="nav">聊天</div><div class="nav">联系人</div><div class="nav active">Raft 数据库</div><div class="divider"></div><div class="nav">仪表盘</div><div class="nav">用户管理</div><div class="nav">事件日志</div><div class="nav">集群监控</div><div class="nav">指标</div></aside>
+<header><span class="muted">工作台 / Raft 数据库</span><span class="badge">交互原型 · 演示数据</span></header>
+<main>
+<div class="heading"><div><h1>Raft 数据库</h1><div class="muted">浏览键值，编辑配置，将变更提交到集群。</div></div><button id="createDB">新建我的数据库</button></div>
+<div class="banner">系统管理员可管理所有用户的数据库。当前为演示数据，刷新后恢复。</div>
+<section class="card selectors" aria-label="选择用户和数据库">
+<details class="picker" id="userPicker"><summary><span class="muted">用户</span><strong id="selectedUser">请选择用户</strong></summary><div class="picker-popover"><div class="filter"><input id="userSearch" aria-label="搜索用户" placeholder="搜索用户名、昵称或用户 ID"></div><div id="userList" class="picker-results"></div></div></details>
+<details class="picker" id="databasePicker"><summary><span class="muted">数据库</span><strong id="selectedDatabase">请先选择用户</strong></summary><div class="picker-popover"><div class="panel-head"><h2 id="databaseHeading">选择数据库</h2><span class="muted" id="databaseCount"></span></div><div class="filter"><input id="databaseSearch" aria-label="搜索数据库" placeholder="先选择用户" disabled></div><div id="databaseList" class="picker-results"></div></div></details>
+</section>
+<div class="card empty" id="selectionHint">从上方选择用户和数据库，开始查看键值。</div>
+<section class="card connect hidden" id="databaseContext"><strong id="databaseName"></strong><span class="muted" id="dbStatus"></span><button id="manageACL">管理授权</button></section>
+<section class="card workspace hidden" id="workspace">
+<div class="keys"><div class="panel-head"><h2>键列表 <span class="muted" id="count"></span></h2><button id="addKey">＋ 新增键</button></div><div class="filter"><input id="prefix" aria-label="键名前缀" placeholder="按键名前缀筛选，例如 config/"></div><div id="list"></div></div>
+<div class="detail"><div class="panel-head"><h2 id="detailTitle">键详情</h2><span class="muted" id="dirty">未修改</span></div><div class="editor" id="editor"><code class="key-title" id="keyTitle"></code><input id="newKey" class="hidden" aria-label="新键名称" placeholder="键名，例如 config/feature-flags"><div class="meta"><span id="created"></span><span id="modified"></span><span id="bytes"></span></div><div class="toolbar"><label for="format">值</label><div><select id="format" aria-label="值格式"><option value="text">文本</option><option value="json" selected>JSON</option><option value="base64">Base64</option></select> <button id="pretty">格式化</button></div></div><textarea id="value" spellcheck="false" aria-label="值编辑器"></textarea><div id="conflict" class="error hidden">这个键已被其他人修改，本次保存未提交。你的编辑内容已保留。请复制需要保留的内容，再点击“重新读取”查看最新值。</div><div class="actions"><div><button class="primary" id="save">保存修改</button><button id="reload">重新读取</button></div><span class="muted" id="saveHint">保存时校验修改版本</span></div><div class="footnote">文本与 JSON 按 UTF-8 编码；二进制值可通过 Base64 查看和编辑。<br>读取当前节点已应用的数据，保存后可重新读取确认。</div></div><div id="empty" class="empty hidden">选择一个键查看详情，或新增第一个键。</div></div>
+</section>
+<section class="card demo hidden" id="demoPanel"><span class="muted">原型体验</span><button id="simulate">模拟其他人修改此键</button><span class="muted">修改右侧内容后模拟并发更新，再保存，可查看版本冲突状态。</span></section>
+<p class="footnote">设计说明：先搜索并选择用户，再搜索并选择该用户拥有的数据库，最后查看和编辑键值。系统管理员可读写任意用户的数据库并管理授权；普通用户仍按数据库授权访问。管理员操作保持当前登录身份，不切换成数据库所有者，所有权不变。正式接入需先补充服务端管理员权限、数据库及授权列表接口；当前原型展示的是目标行为。</p>
+</main>
+<dialog id="dbDialog"><h2>新建数据库</h2><p class="muted">创建者拥有该数据库的读、写和管理权限。</p><form id="dbForm"><label for="dbName">数据库名称</label><input id="dbName" required placeholder="例如 app-config"><div class="actions"><button type="button" id="cancelDB">取消</button><button class="primary" type="submit">创建并打开</button></div></form></dialog>
+<dialog id="aclDialog"><h2 id="aclTitle">数据库授权</h2><p class="muted">系统管理员可直接管理此数据库，操作不会改变所有者。</p><div id="aclList"></div><form id="aclForm"><label for="aclUser">授权用户</label><input id="aclUser" required placeholder="例如 alice"><label for="aclPermission">权限</label><select id="aclPermission"><option value="1">只读</option><option value="3">读写</option><option value="7">读写和授权管理</option></select><div class="actions"><button type="button" id="closeACL">关闭</button><button class="primary" type="submit">保存授权</button></div></form></dialog>
+<div id="toast" class="toast hidden" role="status"></div>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const encoder = new TextEncoder();
+const seed = (value, created, revision) => ({data:encoder.encode(value),created,revision});
+const databases = new Map([['app-config',new Map([
+ ['config/feature-flags',seed('{\n  "enable_notifications": true,\n  "max_connections": 128,\n  "welcome_message": "欢迎使用 turntf"\n}',12,42)],
+ ['config/log-level',seed('info',15,38)],
+ ['config/retry-policy',seed('{\n  "max_attempts": 3,\n  "interval_ms": 1000\n}',20,40)],
+ ['routing/default-region',seed('cn-east',24,41)]
+])] ]);
+const owners = new Map([['app-config','alice'],['notification-rules','bob'],['ops-settings','admin']]);
+const grants = new Map([...owners].map(([name,owner])=>[name,new Map([[owner,'7']])]));
+databases.set('notification-rules',new Map([['rules/default',seed('{"enabled":true,"retry":3}',25,39)]]));
+databases.set('ops-settings',new Map([['maintenance/enabled',seed('false',30,40)]]));
+const users = [
+ {name:'alice',label:'产品应用',id:'1001'},
+ {name:'bob',label:'通知服务',id:'1002'},
+ {name:'admin',label:'系统管理员（我）',id:'1000'},
+ {name:'charlie',label:'测试用户',id:'1003'}
+];
+owners.set('feature-config','alice');
+grants.set('feature-config',new Map([['alice','7']]));
+databases.set('feature-config',new Map([['features/search',seed('{"enabled":true}',31,41)]]));
+let selectedOwner=null;
+let currentDB=null, selected=null, revision=42, expected=42, dirty=false, isNew=false, toastTimer;
+function toast(text){$('toast').textContent=text;$('toast').classList.remove('hidden');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.add('hidden'),3500)}
+function entries(){return databases.get(currentDB)}
+function leave(){return !dirty || confirm('有尚未保存的编辑，是否放弃？')}
+function setDirty(value){dirty=value;$('dirty').textContent=value?'有未保存的修改':'未修改'}
+function renderList(){const rows=[...entries()].filter(([key])=>key.startsWith($('prefix').value)).sort(([a],[b])=>a.localeCompare(b));$('count').textContent=`(${rows.length})`;$('list').replaceChildren();for(const [key,item] of rows){const button=document.createElement('button');button.className='key'+(selected===key&&!isNew?' selected':'');const name=document.createElement('code');name.textContent=key;const meta=document.createElement('small');meta.textContent=`${item.data.length} 字节 · 修改版本 ${item.revision}`;button.append(name,meta);button.onclick=()=>{if(leave())load(key)};$('list').append(button)}if(!rows.length){const empty=document.createElement('div');empty.className='empty';empty.textContent='没有匹配的键';$('list').append(empty)}}
+function encode64(data){let binary='';for(const byte of data)binary+=String.fromCharCode(byte);return btoa(binary)}
+function decodeInput(){const value=$('value').value;if($('format').value==='base64'){if(!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value))throw Error('请输入有效的 Base64');return Uint8Array.from(atob(value),c=>c.charCodeAt(0))}if($('format').value==='json')JSON.parse(value);return encoder.encode(value)}
+function display(data,format){if(format==='base64')return encode64(data);const text=new TextDecoder('utf-8',{fatal:true}).decode(data);return format==='json'?JSON.stringify(JSON.parse(text),null,2):text}
+let previousFormat='json';
+function load(key){selected=key;isNew=false;setDirty(false);$('conflict').classList.add('hidden');$('newKey').classList.add('hidden');$('detailTitle').textContent='键详情';const item=entries().get(key);$('editor').classList.toggle('hidden',!item);$('empty').classList.toggle('hidden',!!item);if(item){expected=item.revision;$('keyTitle').textContent=key;$('created').textContent=`创建版本 ${item.created}`;$('modified').textContent=`修改版本 ${item.revision}`;$('bytes').textContent=`${item.data.length} 字节`;let format='json',value;try{value=display(item.data,format)}catch{format='text';try{value=display(item.data,format)}catch{format='base64';value=display(item.data,format)}}$('format').value=previousFormat=format;$('value').value=value;$('save').textContent='保存修改';$('saveHint').textContent='保存时校验修改版本'}renderList()}
+function openDB(name){
+ if(!databases.has(name)||owners.get(name)!==selectedOwner){toast('请先选择用户，再选择该用户的数据库');return}
+ currentDB=name;$('selectedDatabase').textContent=name;$('databasePicker').open=false;$('userPicker').open=false;$('selectionHint').classList.add('hidden');$('databaseName').textContent=name;$('dbStatus').textContent=`所有者：${selectedOwner} · 系统管理员访问`;
+ for(const id of ['databaseContext','workspace','demoPanel'])$(id).classList.remove('hidden');
+ $('prefix').value='';load(entries().keys().next().value??null);renderDatabases();
+}
+$('prefix').oninput=renderList;
+$('value').oninput=()=>setDirty(true);$('newKey').oninput=()=>setDirty(true);
+$('addKey').onclick=()=>{if(!leave())return;selected=null;isNew=true;setDirty(true);$('editor').classList.remove('hidden');$('empty').classList.add('hidden');$('conflict').classList.add('hidden');$('detailTitle').textContent='新增键';$('keyTitle').textContent='设置键名与初始值';$('newKey').classList.remove('hidden');$('newKey').value='';$('created').textContent='尚未创建';$('modified').textContent='';$('bytes').textContent='';$('format').value=previousFormat='json';$('value').value='{\n  \n}';$('save').textContent='创建键';$('saveHint').textContent='仅当键不存在时创建';renderList();$('newKey').focus()};
+$('pretty').onclick=()=>{if($('format').value!=='json'){toast('选择 JSON 格式后可格式化');return}try{$('value').value=JSON.stringify(JSON.parse($('value').value),null,2);setDirty(true)}catch{toast('JSON 格式不正确，请检查后重试')}};
+$('format').onchange=()=>{const next=$('format').value;$('format').value=previousFormat;try{const data=decodeInput();const result=display(data,next);$('value').value=result;$('format').value=previousFormat=next}catch{toast('无法转换到所选格式，请检查内容')}};
+$('save').onclick=()=>{const key=isNew?$('newKey').value:selected;if(!key){toast('请输入键名');return}let data;try{data=decodeInput()}catch(error){toast($('format').value==='json'?'JSON 格式不正确，请检查后重试':error.message);return}const old=entries().get(key);if((isNew&&old)||(!isNew&&(!old||old.revision!==expected))){$('conflict').textContent=isNew?'这个键已存在，请使用其他键名，或从列表中打开后编辑。':'这个键已被其他人修改，本次保存未提交。你的编辑内容已保留。请复制需要保留的内容，再点击“重新读取”查看最新值。';$('conflict').classList.remove('hidden');return}revision++;entries().set(key,{data,created:old?.created??revision,revision});load(key);toast(`演示保存成功 · 版本 ${revision}`)};
+$('reload').onclick=()=>{if(!leave())return;if(isNew)load(entries().keys().next().value??null);else load(selected)};
+$('simulate').onclick=()=>{if(isNew||!selected){toast('请先选择一个已有键');return}const item=entries().get(selected);revision++;entries().set(selected,{...item,data:encoder.encode('{"updated_by":"其他用户","enabled":false}'),revision});renderList();toast('已模拟并发更新，编辑器保留原来的内容与版本')};
+$('createDB').onclick=()=>{if(leave()){$('dbName').value='';$('dbDialog').showModal()}};
+$('cancelDB').onclick=()=>$('dbDialog').close();
+$('dbForm').onsubmit=e=>{e.preventDefault();const name=$('dbName').value.trim();if(!name){toast('请输入数据库名称');return}if(databases.has(name)){toast('数据库已存在');return}databases.set(name,new Map());owners.set(name,'admin');grants.set(name,new Map([['admin','7']]));revision++;$('dbDialog').close();selectOwner('admin');openDB(name);toast('演示数据库已创建，可以新增键')};
+function showEmpty(container,message){const node=document.createElement('div');node.className='empty';node.textContent=message;container.append(node)}
+function renderUsers(){
+ const query=$('userSearch').value.trim().toLowerCase();$('userList').replaceChildren();
+ for(const user of users){
+  if(!`${user.name} ${user.label} ${user.id}`.toLowerCase().includes(query))continue;
+  const row=document.createElement('button');row.className='key'+(selectedOwner===user.name?' selected':'');
+  const name=document.createElement('code');name.textContent=`${user.name} · ${user.label}`;
+  const info=document.createElement('small');info.textContent=`用户 ID：${user.id}`;
+  row.append(name,info);row.onclick=()=>{if(selectedOwner!==user.name&&leave())selectOwner(user.name)};$('userList').append(row);
+ }
+ if(!$('userList').children.length)showEmpty($('userList'),'没有匹配的用户，请尝试其他用户名、昵称或 ID。');
+}
+function selectOwner(name){
+ selectedOwner=name;currentDB=null;selected=null;isNew=false;setDirty(false);
+ $('selectedUser').textContent=name;$('selectedDatabase').textContent='请选择数据库';$('databaseHeading').textContent=`${name} 的数据库`;
+ $('userPicker').open=false;$('databasePicker').open=true;$('selectionHint').classList.remove('hidden');$('selectionHint').textContent=`请选择 ${name} 的数据库。`;
+ $('databaseSearch').disabled=false;$('databaseSearch').placeholder='按数据库名称搜索';$('databaseSearch').value='';
+ $('prefix').value='';$('value').value='';$('list').replaceChildren();$('conflict').classList.add('hidden');
+ for(const id of ['databaseContext','workspace','demoPanel'])$(id).classList.add('hidden');
+ renderUsers();renderDatabases();
+}
+function renderDatabases(){
+ $('databaseList').replaceChildren();$('databaseCount').textContent='';
+ if(!selectedOwner){showEmpty($('databaseList'),'请先选择一个用户，再查看其数据库。');return}
+ const query=$('databaseSearch').value.trim().toLowerCase();
+ const owned=[...owners].filter(([,owner])=>owner===selectedOwner);
+ const matches=owned.filter(([name])=>name.toLowerCase().includes(query));
+ $('databaseCount').textContent=`${matches.length} / ${owned.length} 个数据库`;
+ for(const [name] of matches){
+  const row=document.createElement('button');row.className='key'+(name===currentDB?' selected':'');
+  const title=document.createElement('code');title.textContent=name;
+  const info=document.createElement('small');info.textContent=name===currentDB?'当前已打开':'点击查看键值与管理授权';
+  row.append(title,info);row.onclick=()=>{if(name!==currentDB&&leave())openDB(name)};$('databaseList').append(row);
+ }
+ if(!matches.length)showEmpty($('databaseList'),owned.length?'没有匹配的数据库，请修改搜索词。':'该用户尚无数据库。');
+}
+function renderACL(){
+ $('aclTitle').textContent=`授权管理 · ${currentDB}`;$('aclList').replaceChildren();
+ for(const [user,permission] of grants.get(currentDB)){
+  const row=document.createElement('div');row.className='panel-head';
+  const label=document.createElement('span');label.textContent=`${user}${owners.get(currentDB)===user?'（所有者）':''} · ${{'1':'只读','3':'读写','7':'读写和授权管理'}[permission]}`;
+  const remove=document.createElement('button');remove.textContent='撤销';
+  remove.onclick=()=>{if(confirm(`撤销 ${user} 的数据库授权？`)){grants.get(currentDB).delete(user);renderACL();toast('演示授权已撤销，所有权不变')}};
+  row.append(label,remove);$('aclList').append(row);
+ }
+ if(!grants.get(currentDB).size)$('aclList').textContent='暂无用户授权，系统管理员仍可管理。';
+}
+$('userPicker').addEventListener('toggle',()=>{if($('userPicker').open){$('databasePicker').open=false;$('userSearch').focus()}});
+$('databasePicker').addEventListener('toggle',()=>{if($('databasePicker').open){$('userPicker').open=false;if(selectedOwner)$('databaseSearch').focus()}});
+document.addEventListener('click',event=>{const pickers=['userPicker','databasePicker'].map($);if(pickers.some(picker=>picker.contains(event.target)))return;for(const picker of pickers)picker.open=false});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'){for(const id of ['userPicker','databasePicker'])if($(id).open){$(id).open=false;$(id).querySelector('summary').focus()}}});
+$('userSearch').oninput=renderUsers;
+$('databaseSearch').oninput=renderDatabases;
+$('manageACL').onclick=()=>{renderACL();$('aclUser').value='';$('aclDialog').showModal()};
+$('closeACL').onclick=()=>$('aclDialog').close();
+$('aclForm').onsubmit=e=>{e.preventDefault();const user=$('aclUser').value.trim();if(!user){toast('请输入授权用户');return}grants.get(currentDB).set(user,$('aclPermission').value);renderACL();toast('演示授权已保存')};
+renderUsers();renderDatabases();
+</script>
+</body>
+</html>

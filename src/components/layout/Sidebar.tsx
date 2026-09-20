@@ -1,5 +1,6 @@
 import { Drawer, Layout, Menu } from "antd";
 import {
+  DatabaseOutlined,
   DashboardOutlined,
   UserOutlined,
   FileTextOutlined,
@@ -58,6 +59,7 @@ export function Sidebar({ compact, open, onClose }: { compact: boolean; open: bo
       icon: <ContactsOutlined />,
       label: "联系人",
     },
+    { key: "/raft", icon: <DatabaseOutlined />, label: "Raft 数据库" },
   ];
 
   const allItems: MenuItem[] = isAdmin

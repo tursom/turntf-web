@@ -6,6 +6,23 @@
 }
 
 body { margin: 0; min-width: 320px; }
+.raft-heading, .raft-context, .raft-value-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.raft-selectors { margin-bottom: 16px; }
+.raft-selector-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.raft-selector { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.raft-selector > .ant-typography { flex-shrink: 0; }
+.raft-selector .ant-select { flex: 1; min-width: 0; }
+.raft-workspace { display: grid; grid-template-columns: minmax(260px, 35%) minmax(0, 1fr); gap: 16px; align-items: start; }
+.raft-workspace > .ant-card { min-width: 0; }
+.raft-key-button { width: 100%; text-align: left; border: 0; background: transparent; cursor: pointer; color: inherit; padding: 6px 0; }
+.raft-key-button code { display: block; overflow-wrap: anywhere; }
+.raft-key-button small { display: block; margin-top: 6px; color: #7a818c; overflow-wrap: anywhere; }
+.raft-key-selected { background: #e6f4ff; }
+.raft-meta { margin-bottom: 16px; }
+.raft-alert { margin-bottom: 12px; margin-top: 12px; }
+.raft-value { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; line-height: 1.8; }
+@media (max-width: 1000px) { .raft-workspace { grid-template-columns: 1fr; } }
+@media (max-width: 767px) { .raft-selector-grid { grid-template-columns: 1fr; } }
 * { box-sizing: border-box; }
 .app-content {
   margin: 0;

@@ -18,6 +18,7 @@ import { UserDetailPage } from "@/pages/UserDetailPage";
 import { MessageListPage } from "@/pages/MessageListPage";
 import { EventLogPage } from "@/pages/EventLogPage";
 import { ClusterPage } from "@/pages/ClusterPage";
+import { RaftDatabasePage } from "@/pages/RaftDatabasePage";
 import { MetricsPage } from "@/pages/MetricsPage";
 
 const queryClient = new QueryClient({
@@ -44,6 +45,7 @@ export default function App() {
                       <Route path="/chat" element={<ChatPage />} />
                       <Route path="/chat/:nodeId/:userId" element={<ChatPage />} />
                       <Route path="/contacts" element={<ContactsPage />} />
+                      <Route path="/raft" element={<RaftDatabasePage />} />
                       <Route path="/settings" element={<SettingsPage />} />
                       <Route path="/admin/cluster" element={<ClusterPage />} />
                     </Route>
