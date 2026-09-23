@@ -1,12 +1,13 @@
 import { lazy, Suspense, useState } from "react";
 import { Empty, Select, Skeleton, Table, Tag, Typography } from "antd";
 import type { TopologyStatus } from "@/api/topology";
+import type { MessageTrace } from "@/api/traces";
 import { costWidth, routesForClass, trafficLabels } from "./topologyModel";
 import type { MeshRoute } from "@/api/topology";
 
 const RouteGraph = lazy(() => import("./RouteGraph").then((module) => ({ default: module.RouteGraph })));
 
-export function TopologyView({ status }: { status: TopologyStatus }) {
+export function TopologyView({ status, trace }: { status: TopologyStatus; trace?: MessageTrace }) {
   const classes = [...new Set(status.routes.map((route) => route.trafficClass))].sort();
   const [trafficClass, setTrafficClass] = useState("transient_interactive");
   const selectedClass = classes.includes(trafficClass) ? trafficClass : classes[0];
@@ -26,7 +27,7 @@ export function TopologyView({ status }: { status: TopologyStatus }) {
         options={classes.map((value) => ({ label: trafficLabels[value] ?? value, value }))} onChange={setTrafficClass} />
     </div>
     <Suspense fallback={<Skeleton active paragraph={{ rows: 8 }} />}>
-      <RouteGraph status={status} routes={routes} />
+      <RouteGraph status={status} routes={routes} trace={trace} />
     </Suspense>
     <Typography.Title level={5} style={{ marginTop: 24 }}>目的节点路由与估算成本</Typography.Title>
     <Table rowKey="destinationNodeId" dataSource={routes} pagination={{ pageSize: 10, hideOnSinglePage: true }} scroll={{ x: 760 }}

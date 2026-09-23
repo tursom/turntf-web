@@ -3,7 +3,9 @@ import { Button, Empty, Input, Space, Tooltip, Typography, message } from "antd"
 import { AimOutlined, MinusOutlined, PlusOutlined } from "@ant-design/icons";
 import cytoscape, { type Core, type StylesheetStyle } from "cytoscape";
 import type { MeshRoute, TopologyStatus } from "@/api/topology";
+import type { MessageTrace } from "@/api/traces";
 import { graphElements } from "./topologyModel";
+import { observedGraphElements } from "./traceModel";
 
 const style: StylesheetStyle[] = [
   { selector: "node", style: { "width": 52, "height": 52, "background-color": "#fff", "border-width": 2,
@@ -14,12 +16,18 @@ const style: StylesheetStyle[] = [
   { selector: "node.peer", style: { "background-color": "#e4f3ef", "border-color": "#3a9c85" } },
   { selector: "node.destination", style: { "background-color": "#fff2db", "border-color": "#bd812f" } },
   { selector: "node.offline", style: { "background-color": "#f1f3f5", "border-color": "#aab4bc", "color": "#747c83" } },
+  { selector: "node.observed", style: { "background-color": "#e2effa", "border-color": "#1271ad" } },
+  { selector: "node.trace-node", style: { "border-color": "#1271ad", "border-width": 4 } },
   { selector: "edge", style: { "curve-style": "bezier", "line-color": "#2a9b7f", "width": "mapData(weight, 0, 100, 2, 5)",
     "target-arrow-shape": "none", "label": "data(costLabel)", "font-size": 10, "color": "#54616a",
     "text-rotation": "autorotate", "text-margin-y": -9, "text-background-color": "#fff", "text-background-opacity": 0.9,
     "text-background-padding": "2px" } },
   { selector: "edge.route", style: { "line-color": "#c28531", "line-style": "dashed", "target-arrow-shape": "triangle",
     "target-arrow-color": "#c28531", "arrow-scale": 0.9 } },
+  { selector: "edge.trace-confirmed, edge.trace-replica", style: { "line-color": "#1271ad", "target-arrow-shape": "triangle",
+    "target-arrow-color": "#1271ad", "width": 5, "z-index": 10, "label": "data(label)" } },
+  { selector: "edge.trace-unconfirmed", style: { "line-color": "#92516e", "line-style": "dashed", "target-arrow-shape": "triangle",
+    "target-arrow-color": "#92516e", "width": 4, "z-index": 10, "label": "data(label)" } },
   { selector: ":selected", style: { "overlay-opacity": 0, "border-color": "#1776bd", "border-width": 4,
     "line-color": "#1776bd", "target-arrow-color": "#1776bd" } },
 ];
@@ -32,7 +40,8 @@ function SelectionDetails({ data, status, routes }: { data: GraphData; status: T
   const peer = status.peers.find((item) => item.nodeId === id);
   const edge = data.source !== undefined;
   const entries = edge ? [
-    ["关系", data.kind === "connection" ? "已连接的对等节点" : "经下一跳的路由（非物理链路）"],
+    ["关系", data.kind === "connection" ? "已连接的对等节点" : data.kind === "trace-confirmed" ? "实际转发，两端均已观测" :
+      data.kind === "trace-unconfirmed" ? "已尝试转发，下一跳未观测到" : data.kind === "trace-replica" ? "复制对端已记录事件" : "经下一跳的路由（非物理链路）"],
     ["来源", String(data.source).replace(/^node:/, "")],
     ["目标", String(data.target).replace(/^node:/, "")],
   ] : [
@@ -53,12 +62,21 @@ function SelectionDetails({ data, status, routes }: { data: GraphData; status: T
   </div>;
 }
 
-export function RouteGraph({ status, routes }: { status: TopologyStatus; routes: MeshRoute[] }) {
+export function RouteGraph({ status, routes, trace }: { status: TopologyStatus; routes: MeshRoute[]; trace?: MessageTrace }) {
   const container = useRef<HTMLDivElement>(null);
   const cyRef = useRef<Core | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const elements = useMemo(() => graphElements(status, routes), [status, routes]);
+  const elements = useMemo(() => {
+    const base = graphElements(status, routes);
+    const ids = new Set(base.map((element) => element.data.id));
+    const observed = observedGraphElements(trace);
+    const traceNodeIds = new Set(observed.filter((element) => !element.data.source).map((element) => element.data.id));
+    for (const element of base) {
+      if (traceNodeIds.has(element.data.id)) element.classes = `${element.classes ?? ""} trace-node`;
+    }
+    return [...base, ...observed.filter((element) => !ids.has(element.data.id))];
+  }, [status, routes, trace]);
   const selected = elements.find((element) => element.data.id === selectedId)?.data as GraphData | undefined;
 
   useEffect(() => {
@@ -124,7 +142,9 @@ export function RouteGraph({ status, routes }: { status: TopologyStatus; routes:
         </Space.Compact>
       </div>
       <div ref={container} className="topology-canvas" aria-label="可缩放拖动的节点关系图" />
-      <div className="topology-legend"><span className="topology-legend-link" />已连接 <span className="topology-legend-route" />经下一跳可达（非物理链路） <span className="topology-legend-offline" />未连接 / 不可达</div>
+      <div className="topology-legend"><span className="topology-legend-link" />已连接 <span className="topology-legend-route" />经下一跳可达（非物理链路） <span className="topology-legend-offline" />未连接 / 不可达
+        {trace && <><span className="topology-legend-observed" />两端观测 / 复制对端已记录 <span className="topology-legend-unconfirmed" />仅发送端观测</>}
+      </div>
     </div>
     {selected ? <SelectionDetails data={selected} status={status} routes={routes} /> :
       <div className="topology-details"><Typography.Title level={5} style={{ marginTop: 0 }}>关系详情</Typography.Title>

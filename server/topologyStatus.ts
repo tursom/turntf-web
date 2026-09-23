@@ -1,7 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import JSONbig from "json-bigint";
 
-const parseJson = JSONbig({ useNativeBigInt: true }).parse;
+const json = JSONbig({ useNativeBigInt: true });
+const parseJson = json.parse;
 
 const nodeIdPattern = /^[1-9]\d{0,18}$/;
 const maxNodeId = 9223372036854775807n;
@@ -85,5 +86,54 @@ export function createTopologyStatusHandler(rawTargets: string | undefined, fetc
     } catch {
       sendError(502, "节点状态暂时不可用");
     }
+  };
+}
+
+const traceIdPattern = /^[0-9a-f]{32}$/;
+
+export function createMessageTraceHandler(rawTargets: string | undefined, fetchTrace: typeof fetch = fetch) {
+  const targets = parseTopologyTargets(rawTargets);
+  return async (req: IncomingMessage, res: ServerResponse, traceId: string): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
+    const sendError = (status: number, error: string) => {
+      res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error }));
+    };
+    if (req.method !== "GET" || !traceIdPattern.test(traceId)) return sendError(400, "无效的追踪 ID");
+    const authorization = req.headers.authorization;
+    if (typeof authorization !== "string" || !/^Bearer \S+$/.test(authorization)) return sendError(401, "请先登录");
+    if (!targets.size) return sendError(503, "尚未配置可信节点入口");
+
+    const nodes = await Promise.all([...targets].map(async ([nodeId, target]) => {
+      const request = (path: string) => fetchTrace(`${target}${path}`, {
+        headers: { Authorization: authorization }, redirect: "manual", signal: AbortSignal.timeout(8000),
+      });
+      try {
+        const statusResponse = await request("/ops/status");
+        if (statusResponse.status === 401 || statusResponse.status === 403) return { node_id: nodeId, events: [], error: "无权查询" };
+        if (!statusResponse.ok) throw new Error("status unavailable");
+        const status: unknown = parseJson(await readBoundedBody(statusResponse));
+        if (!status || typeof status !== "object" || String((status as Record<string, unknown>).node_id) !== nodeId) {
+          throw new Error("node identity mismatch");
+        }
+        const traceResponse = await request(`/ops/traces/${traceId}`);
+        if (traceResponse.status === 401 || traceResponse.status === 403) return { node_id: nodeId, events: [], error: "无权查询" };
+        if (!traceResponse.ok) throw new Error("trace unavailable");
+        const trace: unknown = parseJson(await readBoundedBody(traceResponse));
+        if (!trace || typeof trace !== "object" || (trace as Record<string, unknown>).trace_id !== traceId ||
+            !Array.isArray((trace as Record<string, unknown>).events) ||
+            !(trace as { events: unknown[] }).events.every((event) => event && typeof event === "object" &&
+              String((event as Record<string, unknown>).node_id) === nodeId &&
+              (event as Record<string, unknown>).trace_id === traceId)) {
+          throw new Error("trace identity mismatch");
+        }
+        return { node_id: nodeId, events: (trace as { events: unknown[] }).events };
+      } catch {
+        return { node_id: nodeId, events: [], error: "节点暂时不可用或身份不匹配" };
+      }
+    }));
+    if (nodes.every((node) => node.error === "无权查询")) return sendError(403, "无权查看消息轨迹");
+    res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
+    res.end(json.stringify({ trace_id: traceId, nodes }));
   };
 }

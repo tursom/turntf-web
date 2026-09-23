@@ -1,10 +1,12 @@
-import { Tabs, Table, Tag, Typography, Select, Button, Empty, Spin } from "antd";
+import { Tabs, Table, Tag, Typography, Select, Button, Empty, Spin, Input, Alert } from "antd";
 import { TeamOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { listClusterNodes, listNodeLoggedInUsers } from "@/api/cluster";
 import { getTopologyStatus } from "@/api/topology";
+import { getMessageTrace } from "@/api/traces";
 import { TopologyView } from "@/components/cluster/TopologyView";
+import { TracePanel } from "@/components/cluster/TracePanel";
 import { REFETCH_INTERVALS } from "@/utils/constants";
 import { idToStr } from "@/utils/format";
 import { QueryStatus } from "@/components/common/QueryStatus";
@@ -16,6 +18,9 @@ export function ClusterPage() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("nodes");
   const [perspectiveId, setPerspectiveId] = useState<string | null>(null);
+  const [traceDraft, setTraceDraft] = useState("");
+  const [traceId, setTraceId] = useState("");
+  const [traceInputError, setTraceInputError] = useState("");
 
   const nodesQuery = useQuery({
     queryKey: ["clusterNodes"],
@@ -44,6 +49,12 @@ export function ClusterPage() {
     refetchInterval: REFETCH_INTERVALS.Cluster,
   });
   const topologyQuery = viewingRemote ? remoteTopologyQuery : localTopologyQuery;
+  const traceQuery = useQuery({
+    queryKey: ["messageTrace", traceId, token],
+    queryFn: () => getMessageTrace(token!, traceId),
+    enabled: !!token && isAdmin && activeTab === "topology" && !!traceId,
+    refetchInterval: 10000,
+  });
   const perspectiveOptions = [...new Set([
     ...(localId ? [localId] : []),
     ...nodesQuery.data?.map((node) => idToStr(node.nodeId)) ?? [],
@@ -129,7 +140,21 @@ export function ClusterPage() {
             </div>
             <QueryStatus {...topologyQuery} hasData={topologyQuery.data !== undefined}
               onRefresh={() => { void topologyQuery.refetch(); }} disabled={!token} />
-            {topologyQuery.data && <TopologyView status={topologyQuery.data} />}
+            <div className="trace-search">
+              <Typography.Text>消息轨迹</Typography.Text>
+              <Input.Search aria-label="追踪 ID" placeholder="32 位追踪 ID" value={traceDraft} maxLength={32}
+                onChange={(event) => { setTraceDraft(event.target.value.trim()); setTraceInputError(""); }}
+                onSearch={() => {
+                  if (!/^[0-9a-f]{32}$/.test(traceDraft)) { setTraceId(""); setTraceInputError("请输入有效的 32 位小写追踪 ID"); return; }
+                  setTraceInputError(""); setTraceId(traceDraft);
+                }} enterButton="查询" style={{ width: 370, maxWidth: "100%" }} />
+              {traceId && <Button onClick={() => { setTraceId(""); setTraceDraft(""); }}>清除</Button>}
+            </div>
+            {traceInputError && <Alert type="error" showIcon message={traceInputError} />}
+            {traceId && traceQuery.isError && <Alert type="error" showIcon message={traceQuery.error instanceof Error ? traceQuery.error.message : "轨迹查询失败"} />}
+            {traceId && traceQuery.isLoading && <Spin />}
+            {topologyQuery.data && <TopologyView status={topologyQuery.data} trace={traceId === traceQuery.data?.traceId ? traceQuery.data : undefined} />}
+            {traceId && traceQuery.data && <TracePanel trace={traceQuery.data} />}
             {topologyQuery.isLoading && <Spin />}
             {!topologyQuery.data && !topologyQuery.isLoading && !topologyQuery.isError && <Empty description="暂无拓扑数据" />}
           </div>,
