@@ -3,6 +3,8 @@ import { TeamOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { listClusterNodes, listNodeLoggedInUsers } from "@/api/cluster";
+import { getTopologyStatus } from "@/api/topology";
+import { TopologyView } from "@/components/cluster/TopologyView";
 import { REFETCH_INTERVALS } from "@/utils/constants";
 import { idToStr } from "@/utils/format";
 import { QueryStatus } from "@/components/common/QueryStatus";
@@ -10,7 +12,7 @@ import { useState, useEffect } from "react";
 import type { LoggedInUser } from "@/types";
 
 export function ClusterPage() {
-  const { token, user } = useAuth();
+  const { token, user, isAdmin } = useAuth();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("nodes");
 
@@ -25,6 +27,12 @@ export function ClusterPage() {
     queryFn: () => listNodeLoggedInUsers(token!, selectedNodeId!),
     enabled: !!token && !!selectedNodeId,
     refetchInterval: REFETCH_INTERVALS.LoggedInUsers,
+  });
+  const topologyQuery = useQuery({
+    queryKey: ["topology", token],
+    queryFn: () => getTopologyStatus(token!),
+    enabled: !!token && isAdmin && activeTab === "topology",
+    refetchInterval: REFETCH_INTERVALS.Cluster,
   });
   const { data: nodes = [], isLoading: nodesLoading } = nodesQuery;
   const { data: loggedInUsers = [], isLoading: usersLoading } = usersQuery;
@@ -93,6 +101,16 @@ export function ClusterPage() {
             </div>
           ),
         },
+        ...(isAdmin ? [{
+          key: "topology",
+          label: "拓扑与成本",
+          children: <div>
+            <QueryStatus {...topologyQuery} hasData={topologyQuery.data !== undefined}
+              onRefresh={() => { void topologyQuery.refetch(); }} disabled={!token} />
+            {topologyQuery.data && <TopologyView status={topologyQuery.data} />}
+            {!topologyQuery.data && !topologyQuery.isLoading && !topologyQuery.isError && <Empty description="暂无拓扑数据" />}
+          </div>,
+        }] : []),
       ]} />
     </div>
   );
