@@ -7,7 +7,8 @@ export const stageLabels: Record<string, string> = {
   retry_queued: "排队重试", retry_expired: "重试到期", session_queued: "会话写入队列",
   delivery_missed: "会话投递失败", replica_event_accepted: "复制事件已接纳或已存在",
   origin_cursor_confirmed: "复制游标已确认", client_write_succeeded: "客户端连接写入成功",
-  client_write_failed: "客户端连接写入失败",
+  client_write_failed: "客户端连接写入失败", probe_started: "探测已发起",
+  probe_failed: "探测发起失败", probe_reached: "目标节点已接收探测包",
 };
 
 export function observedGraphElements(trace: MessageTrace | undefined): ElementDefinition[] {
@@ -43,6 +44,8 @@ export function observedGraphElements(trace: MessageTrace | undefined): ElementD
 }
 
 export function eventIdentity(event: TraceEvent): string {
+  if (event.kind === "probe") return event.packetId && event.packetId !== "0"
+    ? `探测包 ${event.sourceNodeId}:${event.packetId}` : "本次探测";
   return event.kind === "persistent"
     ? `${event.messageNodeId || event.sourceNodeId}:${event.messageSeq || "?"} · 事件 ${event.eventId || "?"}`
     : `包 ${event.sourceNodeId}:${event.packetId}`;

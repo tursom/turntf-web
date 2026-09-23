@@ -31,6 +31,8 @@ body { margin: 0; min-width: 320px; }
 .topology-legend-unconfirmed { border-color: #92516e; border-top-style: dashed; }
 .trace-search { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 16px 0; }
 .trace-search > .ant-typography { flex: none; }
+.trace-run-status { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 10px 0; }
+.trace-run-status code { overflow-wrap: anywhere; }
 .trace-panel { margin: 20px 0 28px; min-width: 0; }
 .trace-panel-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
 .trace-caveat { margin: 12px 0 !important; }

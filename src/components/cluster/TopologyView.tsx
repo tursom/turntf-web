@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Empty, Select, Skeleton, Table, Tag, Typography } from "antd";
 import type { TopologyStatus } from "@/api/topology";
 import type { MessageTrace } from "@/api/traces";
@@ -10,6 +10,9 @@ const RouteGraph = lazy(() => import("./RouteGraph").then((module) => ({ default
 export function TopologyView({ status, trace }: { status: TopologyStatus; trace?: MessageTrace }) {
   const classes = [...new Set(status.routes.map((route) => route.trafficClass))].sort();
   const [trafficClass, setTrafficClass] = useState("transient_interactive");
+  useEffect(() => {
+    if (trace?.events.some((event) => event.kind === "probe")) setTrafficClass("transient_interactive");
+  }, [trace?.traceId]);
   const selectedClass = classes.includes(trafficClass) ? trafficClass : classes[0];
   const routes = selectedClass ? routesForClass(status, selectedClass) : [];
   const costs = routes.filter((route) => route.reachable && /^\d+$/.test(route.estimatedCost)).map((route) => BigInt(route.estimatedCost));

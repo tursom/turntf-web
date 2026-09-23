@@ -91,6 +91,75 @@ export function createTopologyStatusHandler(rawTargets: string | undefined, fetc
 
 const traceIdPattern = /^[0-9a-f]{32}$/;
 
+export function createMessageProbeHandler(rawTargets: string | undefined, fetchProbe: typeof fetch = fetch) {
+  const targets = parseTopologyTargets(rawTargets);
+  return async (req: IncomingMessage, res: ServerResponse, sourceNodeId: string): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
+    const sendError = (status: number, error: string) => {
+      res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(JSON.stringify({ error }));
+    };
+    if (req.method !== "POST" || !validNodeId(sourceNodeId)) return sendError(400, "无效的源节点 ID");
+    const target = targets.get(sourceNodeId);
+    if (!target) return sendError(404, "源节点未配置可信入口");
+    const authorization = req.headers.authorization;
+    if (typeof authorization !== "string" || !/^Bearer \S+$/.test(authorization)) return sendError(401, "请先登录");
+
+    let size = 0;
+    const chunks: Buffer[] = [];
+    try {
+      for await (const chunk of req) {
+        const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as string);
+        size += bytes.length;
+        if (size > 256) return sendError(413, "探测请求过大");
+        chunks.push(bytes);
+      }
+      let input: unknown;
+      try {
+        input = parseJson(Buffer.concat(chunks).toString("utf8"));
+      } catch {
+        return sendError(400, "无效的探测请求");
+      }
+      const requested = input && typeof input === "object" && !Array.isArray(input) ? Object.keys(input) : [];
+      const targetNodeId = requested.length === 1 && requested[0] === "target_node_id"
+        ? String((input as Record<string, unknown>).target_node_id) : "";
+      if (!validNodeId(targetNodeId) || !targets.has(targetNodeId)) return sendError(400, "无效的目标节点 ID");
+
+      const headers = { Authorization: authorization };
+      const statusResponse = await fetchProbe(`${target}/ops/status`, {
+        headers, redirect: "manual", signal: AbortSignal.timeout(8000),
+      });
+      if (statusResponse.status === 401 || statusResponse.status === 403) return sendError(403, "无权使用源节点");
+      if (!statusResponse.ok) return sendError(502, "源节点状态不可用");
+      const status: unknown = parseJson(await readBoundedBody(statusResponse));
+      if (!status || typeof status !== "object" || String((status as Record<string, unknown>).node_id) !== sourceNodeId ||
+          typeof (status as Record<string, unknown>).mesh !== "object") {
+        return sendError(502, "源节点身份不匹配");
+      }
+      const response = await fetchProbe(`${target}/ops/probes`, {
+        method: "POST", headers: { ...headers, "Content-Type": "application/json" },
+        body: `{"target_node_id":${targetNodeId}}`, redirect: "manual", signal: AbortSignal.timeout(8000),
+      });
+      if (response.status === 401 || response.status === 403) return sendError(403, "无权发起探测");
+      if (response.status === 429) return sendError(429, "探测过于频繁");
+      if (!response.ok) return sendError(502, "探测暂时不可用");
+      const body = await readBoundedBody(response);
+      const result: unknown = parseJson(body);
+      if (!result || typeof result !== "object" ||
+          String((result as Record<string, unknown>).source_node_id) !== sourceNodeId ||
+          String((result as Record<string, unknown>).target_node_id) !== targetNodeId ||
+          !traceIdPattern.test(String((result as Record<string, unknown>).trace_id)) ||
+          !["dispatched", "failed"].includes(String((result as Record<string, unknown>).status))) {
+        return sendError(502, "探测结果与请求节点不匹配");
+      }
+      res.writeHead(response.status, { "Content-Type": "application/json; charset=utf-8" });
+      res.end(body);
+    } catch {
+      sendError(502, "探测节点暂时不可用");
+    }
+  };
+}
+
 export function createMessageTraceHandler(rawTargets: string | undefined, fetchTrace: typeof fetch = fetch) {
   const targets = parseTopologyTargets(rawTargets);
   return async (req: IncomingMessage, res: ServerResponse, traceId: string): Promise<void> => {

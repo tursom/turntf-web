@@ -38,6 +38,13 @@ export interface MessageTrace {
   events: TraceEvent[];
 }
 
+export interface ProbeResult {
+  traceId: string;
+  sourceNodeId: string;
+  targetNodeId: string;
+  status: "dispatched" | "failed";
+}
+
 const field = (value: unknown, key: string): unknown => value && typeof value === "object"
   ? (value as Record<string, unknown>)[key] : undefined;
 const text = (value: unknown) => value == null ? "" : String(value);
@@ -62,6 +69,28 @@ export function traceFromHTTP(value: unknown): MessageTrace {
     })),
   }));
   return { traceId, nodes, events: nodes.flatMap((node) => node.events) };
+}
+
+export async function startMessageProbe(token: string, sourceNodeId: string, targetNodeId: string): Promise<ProbeResult> {
+  const validId = (value: string) => /^[1-9]\d{0,18}$/.test(value) && BigInt(value) <= 9223372036854775807n;
+  if (!validId(sourceNodeId) || !validId(targetNodeId)) throw new Error("请选择有效节点");
+  const response = await wrappedFetch(`/ui-api/probes/${sourceNodeId}`, {
+    method: "POST", headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ target_node_id: targetNodeId }),
+  });
+  if (!response.ok) {
+    if (response.status === 403) throw new Error("无权发起探测");
+    if (response.status === 429) throw new Error("探测过于频繁，请稍后重试");
+    throw new Error("探测发起失败");
+  }
+  const body: unknown = parseJson(await response.text());
+  const traceId = text(field(body, "trace_id"));
+  const status = text(field(body, "status"));
+  if (!/^[0-9a-f]{32}$/.test(traceId) || text(field(body, "source_node_id")) !== sourceNodeId ||
+      text(field(body, "target_node_id")) !== targetNodeId || (status !== "dispatched" && status !== "failed")) {
+    throw new Error("探测响应与请求节点不匹配");
+  }
+  return { traceId, sourceNodeId, targetNodeId, status };
 }
 
 export async function getMessageTrace(token: string, traceId: string): Promise<MessageTrace> {

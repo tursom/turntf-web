@@ -1,7 +1,7 @@
 import http, { type Server } from "node:http";
 import { type AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createMessageTraceHandler, createTopologyStatusHandler, parseTopologyTargets } from "./topologyStatus";
+import { createMessageProbeHandler, createMessageTraceHandler, createTopologyStatusHandler, parseTopologyTargets } from "./topologyStatus";
 
 const nodeId = "54062570162229324";
 const origin = "https://node.example.com";
@@ -23,6 +23,14 @@ async function serve(fetchStatus: typeof fetch) {
 
 async function serveTrace(fetchTrace: typeof fetch, targets: Record<string, string> = { [nodeId]: origin }) {
   const handler = createMessageTraceHandler(JSON.stringify(targets), fetchTrace);
+  const server = http.createServer((req, res) => { void handler(req, res, (req.url ?? "").slice(1)); });
+  servers.push(server);
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+}
+
+async function serveProbe(fetchProbe: typeof fetch, targets: Record<string, string> = { [nodeId]: origin }) {
+  const handler = createMessageProbeHandler(JSON.stringify(targets), fetchProbe);
   const server = http.createServer((req, res) => { void handler(req, res, (req.url ?? "").slice(1)); });
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -65,6 +73,51 @@ describe("topology status proxy", () => {
       expect(response.status).toBe(expected);
     }
     expect(outgoing).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("message probe proxy", () => {
+  const other = "54062570162229330";
+  const id = "a".repeat(32);
+  const headers = { Authorization: "Bearer fixture", "Content-Type": "application/json" };
+  const body = JSON.stringify({ target_node_id: other });
+  const send = (url: string, payload = body) => fetch(`${url}/${nodeId}`, { method: "POST", headers, body: payload });
+
+  it("checks source identity before forwarding one bounded request and preserves int64 IDs", async () => {
+    const outgoing = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(`{"node_id":${nodeId},"mesh":{}}`))
+      .mockResolvedValueOnce(new Response(`{"source_node_id":${nodeId},"target_node_id":${other},"trace_id":"${id}","status":"dispatched"}`, { status: 202 }));
+    const url = await serveProbe(outgoing, { [nodeId]: origin, [other]: "https://other.example.com" });
+    const response = await send(url);
+    expect(response.status).toBe(202);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.text()).toContain(other);
+    expect(outgoing).toHaveBeenNthCalledWith(1, `${origin}/ops/status`, expect.objectContaining({ redirect: "manual" }));
+    expect(outgoing).toHaveBeenNthCalledWith(2, `${origin}/ops/probes`, expect.objectContaining({
+      method: "POST", headers, redirect: "manual", body: `{"target_node_id":${other}}`,
+    }));
+  });
+
+  it("never POSTs when source identity, authorization or target validation fails", async () => {
+    const outgoing = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(`{"node_id":${other},"mesh":{}}`))
+      .mockResolvedValueOnce(new Response(null, { status: 302, headers: { Location: "https://evil.example.com" } }));
+    const url = await serveProbe(outgoing, { [nodeId]: origin, [other]: "https://other.example.com" });
+    expect((await send(url)).status).toBe(502);
+    expect((await send(url)).status).toBe(502);
+    expect((await fetch(`${url}/${nodeId}`, { method: "POST", body })).status).toBe(401);
+    expect((await send(url, '{"target_node_id":"999"}')).status).toBe(400);
+    expect((await send(url, '{bad json')).status).toBe(400);
+    expect((await send(url, "a".repeat(300))).status).toBe(413);
+    expect(outgoing).toHaveBeenCalledTimes(2);
+  });
+
+  it("rejects mismatched responses and propagates probe rate limiting", async () => {
+    const outgoing = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(`{"node_id":${nodeId},"mesh":{}}`))
+      .mockResolvedValueOnce(new Response(`{"source_node_id":${other},"target_node_id":${other},"trace_id":"${id}","status":"dispatched"}`, { status: 202 }))
+      .mockResolvedValueOnce(new Response(`{"node_id":${nodeId},"mesh":{}}`))
+      .mockResolvedValueOnce(new Response(null, { status: 429 }));
+    const url = await serveProbe(outgoing, { [nodeId]: origin, [other]: "https://other.example.com" });
+    expect((await send(url)).status).toBe(502);
+    expect((await send(url)).status).toBe(429);
   });
 });
 
