@@ -1,4 +1,4 @@
-import { Tabs, Table, Tag, Typography, Select, Button, Empty } from "antd";
+import { Tabs, Table, Tag, Typography, Select, Button, Empty, Spin } from "antd";
 import { TeamOutlined } from "@ant-design/icons";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +15,7 @@ export function ClusterPage() {
   const { token, user, isAdmin } = useAuth();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("nodes");
+  const [perspectiveId, setPerspectiveId] = useState<string | null>(null);
 
   const nodesQuery = useQuery({
     queryKey: ["clusterNodes"],
@@ -28,12 +29,27 @@ export function ClusterPage() {
     enabled: !!token && !!selectedNodeId,
     refetchInterval: REFETCH_INTERVALS.LoggedInUsers,
   });
-  const topologyQuery = useQuery({
-    queryKey: ["topology", token],
+  const localTopologyQuery = useQuery({
+    queryKey: ["topology", "local", token],
     queryFn: () => getTopologyStatus(token!),
     enabled: !!token && isAdmin && activeTab === "topology",
     refetchInterval: REFETCH_INTERVALS.Cluster,
   });
+  const localId = localTopologyQuery.data?.nodeId;
+  const viewingRemote = perspectiveId !== null && localId !== undefined && perspectiveId !== localId;
+  const remoteTopologyQuery = useQuery({
+    queryKey: ["topology", "remote", token, perspectiveId],
+    queryFn: () => getTopologyStatus(token!, perspectiveId!),
+    enabled: !!token && isAdmin && activeTab === "topology" && viewingRemote,
+    refetchInterval: REFETCH_INTERVALS.Cluster,
+  });
+  const topologyQuery = viewingRemote ? remoteTopologyQuery : localTopologyQuery;
+  const perspectiveOptions = [...new Set([
+    ...(localId ? [localId] : []),
+    ...nodesQuery.data?.map((node) => idToStr(node.nodeId)) ?? [],
+    ...localTopologyQuery.data?.routes.map((route) => route.destinationNodeId) ?? [],
+  ])].filter(Boolean).sort((a, b) => a.localeCompare(b, "en", { numeric: true }))
+    .map((id) => ({ label: `节点 ${id}${id === localId ? "（当前入口）" : ""}`, value: id }));
   const { data: nodes = [], isLoading: nodesLoading } = nodesQuery;
   const { data: loggedInUsers = [], isLoading: usersLoading } = usersQuery;
 
@@ -105,9 +121,16 @@ export function ClusterPage() {
           key: "topology",
           label: "拓扑与成本",
           children: <div>
+            <div className="topology-perspective">
+              <Typography.Text>节点视角</Typography.Text>
+              <Select aria-label="选择节点视角" value={viewingRemote ? perspectiveId : localId} placeholder="选择节点"
+                loading={localTopologyQuery.isLoading} style={{ minWidth: 240, maxWidth: "100%" }}
+                options={perspectiveOptions} onChange={(value) => setPerspectiveId(value === localId ? null : value)} />
+            </div>
             <QueryStatus {...topologyQuery} hasData={topologyQuery.data !== undefined}
               onRefresh={() => { void topologyQuery.refetch(); }} disabled={!token} />
             {topologyQuery.data && <TopologyView status={topologyQuery.data} />}
+            {topologyQuery.isLoading && <Spin />}
             {!topologyQuery.data && !topologyQuery.isLoading && !topologyQuery.isError && <Empty description="暂无拓扑数据" />}
           </div>,
         }] : []),

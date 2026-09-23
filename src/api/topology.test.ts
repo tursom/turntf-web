@@ -35,4 +35,11 @@ describe("getTopologyStatus", () => {
     ]}}`)));
     expect((await getTopologyStatus("token")).routes[0].estimatedCost).toBe("0");
   });
+
+  it("queries a selected node through the same-origin status proxy", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response('{"node_id":2,"mesh":{"enabled":true,"routes":[]}}'));
+    vi.stubGlobal("fetch", fetchMock);
+    expect((await getTopologyStatus("token", "2")).nodeId).toBe("2");
+    expect(fetchMock).toHaveBeenCalledWith("/ui-api/topology/2", { headers: { Authorization: "Bearer token" } });
+  });
 });

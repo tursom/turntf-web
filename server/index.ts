@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import { loadConfig } from "./config";
 import { isBackendPath, setupProxy } from "./proxy";
 import { requestLogger } from "./middleware/logger";
+import { createTopologyStatusHandler } from "./topologyStatus";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const distPath = path.resolve(__dirname, "..", "dist");
@@ -14,6 +15,10 @@ const config = loadConfig();
 
 const app = express();
 app.use(requestLogger);
+const topologyStatus = createTopologyStatusHandler(process.env.TURNTF_NODE_STATUS_URLS);
+app.get("/ui-api/topology/:nodeId", (req, res) => {
+  void topologyStatus(req, res, req.params.nodeId);
+});
 
 // API + WebSocket proxy
 const proxy = setupProxy(app, config.backendUrl);

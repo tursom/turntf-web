@@ -20,7 +20,7 @@ export function TopologyView({ status }: { status: TopologyStatus }) {
     <div className="topology-toolbar">
       <div>
         <Typography.Title level={5} style={{ margin: 0 }}>节点拓扑与通信成本</Typography.Title>
-        <Typography.Text type="secondary">本节点视角 · 拓扑版本 {status.topologyGeneration || "未知"} · 线宽及数值表示整条路由的估算权重，非实际费用或流量</Typography.Text>
+        <Typography.Text type="secondary">节点 {status.nodeId} 视角 · 拓扑版本 {status.topologyGeneration || "未知"} · 线宽及数值表示整条路由的估算权重，非实际费用或流量</Typography.Text>
       </div>
       <Select aria-label="流量类别" value={selectedClass} style={{ width: 174 }} placeholder="流量类别"
         options={classes.map((value) => ({ label: trafficLabels[value] ?? value, value }))} onChange={setTrafficClass} />

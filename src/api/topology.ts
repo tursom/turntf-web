@@ -54,10 +54,15 @@ export function topologyFromHTTP(value: unknown): TopologyStatus {
   };
 }
 
-export async function getTopologyStatus(token: string): Promise<TopologyStatus> {
-  const response = await wrappedFetch(`${getApiUrl()}/ops/status`, {
+export async function getTopologyStatus(token: string, nodeId?: string): Promise<TopologyStatus> {
+  const path = nodeId ? `/ui-api/topology/${encodeURIComponent(nodeId)}` : `${getApiUrl()}/ops/status`;
+  const response = await wrappedFetch(path, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!response.ok) throw new Error(await response.text());
+  if (!response.ok) {
+    const body = await response.text();
+    try { throw new Error((JSON.parse(body) as { error?: string }).error ?? body); }
+    catch (error) { if (error instanceof SyntaxError) throw new Error(body); throw error; }
+  }
   return topologyFromHTTP(parseJson(await response.text()));
 }
