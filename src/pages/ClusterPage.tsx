@@ -1,8 +1,12 @@
-import { Tabs, Table, Tag, Typography, Select, Button, Empty } from "antd";
-import { TeamOutlined } from "@ant-design/icons";
-import { useQuery } from "@tanstack/react-query";
+import { Tabs, Table, Tag, Typography, Select, Button, Empty, Spin, Alert } from "antd";
+import { ExperimentOutlined, TeamOutlined } from "@ant-design/icons";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { listClusterNodes, listNodeLoggedInUsers } from "@/api/cluster";
+import { getTopologyStatus } from "@/api/topology";
+import { getMessageTrace, startMessageProbe, type ProbeResult } from "@/api/traces";
+import { TopologyView } from "@/components/cluster/TopologyView";
+import { TracePanel } from "@/components/cluster/TracePanel";
 import { REFETCH_INTERVALS } from "@/utils/constants";
 import { idToStr } from "@/utils/format";
 import { QueryStatus } from "@/components/common/QueryStatus";
@@ -10,9 +14,12 @@ import { useState, useEffect } from "react";
 import type { LoggedInUser } from "@/types";
 
 export function ClusterPage() {
-  const { token, user } = useAuth();
+  const { token, user, isAdmin } = useAuth();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("nodes");
+  const [perspectiveId, setPerspectiveId] = useState<string | null>(null);
+  const [probeTarget, setProbeTarget] = useState<string | null>(null);
+  const [probe, setProbe] = useState<(ProbeResult & { startedAt: number }) | null>(null);
 
   const nodesQuery = useQuery({
     queryKey: ["clusterNodes"],
@@ -26,6 +33,42 @@ export function ClusterPage() {
     enabled: !!token && !!selectedNodeId,
     refetchInterval: REFETCH_INTERVALS.LoggedInUsers,
   });
+  const localTopologyQuery = useQuery({
+    queryKey: ["topology", "local", token],
+    queryFn: () => getTopologyStatus(token!),
+    enabled: !!token && isAdmin && activeTab === "topology",
+    refetchInterval: REFETCH_INTERVALS.Cluster,
+  });
+  const localId = localTopologyQuery.data?.nodeId;
+  const viewingRemote = perspectiveId !== null && localId !== undefined && perspectiveId !== localId;
+  const remoteTopologyQuery = useQuery({
+    queryKey: ["topology", "remote", token, perspectiveId],
+    queryFn: () => getTopologyStatus(token!, perspectiveId!),
+    enabled: !!token && isAdmin && activeTab === "topology" && viewingRemote,
+    refetchInterval: REFETCH_INTERVALS.Cluster,
+  });
+  const topologyQuery = viewingRemote ? remoteTopologyQuery : localTopologyQuery;
+  const probeMutation = useMutation({
+    mutationFn: ({ source, target }: { source: string; target: string }) => startMessageProbe(token!, source, target),
+    onSuccess: (result) => setProbe({ ...result, startedAt: Date.now() }),
+    onError: () => setProbe(null),
+  });
+  const traceQuery = useQuery({
+    queryKey: ["messageTrace", probe?.traceId, token],
+    queryFn: () => getMessageTrace(token!, probe!.traceId),
+    enabled: !!token && isAdmin && activeTab === "topology" && !!probe,
+    refetchInterval: (query) => !probe || probe.status === "failed" ||
+      query.state.data?.events.some((event) => event.stage === "probe_reached" && event.nodeId === probe.targetNodeId) ||
+      Date.now() - probe.startedAt >= 12000 ? false : 1500,
+  });
+  const probeReached = !!probe && !!traceQuery.data?.events.some((event) => event.stage === "probe_reached" && event.nodeId === probe.targetNodeId);
+  const probeExpired = !!probe && !probeReached && !traceQuery.isFetching && Date.now() - probe.startedAt >= 12000;
+  const perspectiveOptions = [...new Set([
+    ...(localId ? [localId] : []),
+    ...nodesQuery.data?.map((node) => idToStr(node.nodeId)) ?? [],
+    ...localTopologyQuery.data?.routes.map((route) => route.destinationNodeId) ?? [],
+  ])].filter(Boolean).sort((a, b) => a.localeCompare(b, "en", { numeric: true }))
+    .map((id) => ({ label: `节点 ${id}${id === localId ? "（当前入口）" : ""}`, value: id }));
   const { data: nodes = [], isLoading: nodesLoading } = nodesQuery;
   const { data: loggedInUsers = [], isLoading: usersLoading } = usersQuery;
 
@@ -93,6 +136,52 @@ export function ClusterPage() {
             </div>
           ),
         },
+        ...(isAdmin ? [{
+          key: "topology",
+          label: "拓扑与成本",
+          children: <div>
+            <div className="topology-perspective">
+              <Typography.Text>节点视角</Typography.Text>
+              <Select aria-label="选择节点视角" value={viewingRemote ? perspectiveId : localId} placeholder="选择节点"
+                loading={localTopologyQuery.isLoading} disabled={probeMutation.isPending}
+                style={{ minWidth: 240, maxWidth: "100%" }}
+                options={perspectiveOptions} onChange={(value) => {
+                  setPerspectiveId(value === localId ? null : value);
+                  setProbe(null);
+                  probeMutation.reset();
+                }} />
+            </div>
+            <QueryStatus {...topologyQuery} hasData={topologyQuery.data !== undefined}
+              onRefresh={() => { void topologyQuery.refetch(); }} disabled={!token} />
+            <div className="trace-search">
+              <Typography.Text>瞬时消息路由探测</Typography.Text>
+              <Select aria-label="探测目标节点" placeholder="目标节点" value={probeTarget} onChange={setProbeTarget}
+                disabled={probeMutation.isPending}
+                options={perspectiveOptions.filter((option) => option.value !== topologyQuery.data?.nodeId)}
+                style={{ minWidth: 220, maxWidth: "100%" }} />
+              <Button type="primary" icon={<ExperimentOutlined />} loading={probeMutation.isPending}
+                disabled={!topologyQuery.data || !probeTarget || probeTarget === topologyQuery.data.nodeId}
+                onClick={() => {
+                  if (!topologyQuery.data || !probeTarget || probeMutation.isPending) return;
+                  setProbe(null);
+                  probeMutation.mutate({ source: topologyQuery.data.nodeId, target: probeTarget });
+                }}>发起探测</Button>
+            </div>
+            {probeMutation.isError && <Alert type="error" showIcon message={probeMutation.error instanceof Error ? probeMutation.error.message : "探测发起失败"} />}
+            {probe && <div className="trace-run-status">
+              <Typography.Text>探测 ID：<code>{probe.traceId}</code></Typography.Text>
+              <Tag color={probeReached ? "success" : probe.status === "failed" ? "error" : probeExpired ? "warning" : "processing"}>
+                {probeReached ? "目标已观测到达" : probe.status === "failed" ? "发起失败" : probeExpired ? "未确认到达" : "探测中"}
+              </Tag>
+            </div>}
+            {probe && traceQuery.isError && <Alert type="error" showIcon message={traceQuery.error instanceof Error ? traceQuery.error.message : "轨迹查询失败"} />}
+            {probe && traceQuery.isLoading && <Spin />}
+            {topologyQuery.data && <TopologyView status={topologyQuery.data} trace={probe?.traceId === traceQuery.data?.traceId ? traceQuery.data : undefined} />}
+            {probe && traceQuery.data && <TracePanel trace={traceQuery.data} />}
+            {topologyQuery.isLoading && <Spin />}
+            {!topologyQuery.data && !topologyQuery.isLoading && !topologyQuery.isError && <Empty description="暂无拓扑数据" />}
+          </div>,
+        }] : []),
       ]} />
     </div>
   );
