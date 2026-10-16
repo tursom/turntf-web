@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { isIP } from "node:net";
 import JSONbig from "json-bigint";
 
 const json = JSONbig({ useNativeBigInt: true });
@@ -12,18 +13,45 @@ function validNodeId(value: string): boolean {
   return nodeIdPattern.test(value) && BigInt(value) <= maxNodeId;
 }
 
-export function parseTopologyTargets(raw: string | undefined): Map<string, string> {
+function privateIPv4(host: string): boolean {
+  if (isIP(host) !== 4) return false;
+  const [first, second] = host.split(".").map(Number);
+  return first === 10 || (first === 172 && second >= 16 && second <= 31) || (first === 192 && second === 168);
+}
+
+// HTTP 例外必须由部署者逐 origin 指定，并且只能指向私网数字地址。
+// 这些请求携带管理员令牌，部署者须保证路径由 TUN 等受保护网络承载。
+function parseHttpOrigins(raw: string | undefined): Set<string> {
+  if (!raw) return new Set();
+  const value: unknown = JSON.parse(raw);
+  if (!Array.isArray(value)) throw new Error("TURNTF_NODE_STATUS_HTTP_ORIGINS must be a JSON array");
+  const origins = new Set<string>();
+  for (const address of value) {
+    if (typeof address !== "string") throw new Error("Invalid private HTTP origin");
+    const url = new URL(address);
+    if (url.protocol !== "http:" || !privateIPv4(url.hostname) || url.username || url.password ||
+        url.pathname !== "/" || url.search || url.hash) {
+      throw new Error("HTTP exceptions must be private IPv4 origins on a protected network");
+    }
+    origins.add(url.origin);
+  }
+  return origins;
+}
+
+export function parseTopologyTargets(raw: string | undefined,
+  rawHttpOrigins: string | undefined = process.env.TURNTF_NODE_STATUS_HTTP_ORIGINS): Map<string, string> {
   if (!raw) return new Map();
   const value: unknown = JSON.parse(raw);
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("TURNTF_NODE_STATUS_URLS must be a JSON object");
+  const httpOrigins = parseHttpOrigins(rawHttpOrigins);
   const targets = new Map<string, string>();
   for (const [id, address] of Object.entries(value)) {
     if (!validNodeId(id) || typeof address !== "string") throw new Error("Invalid node status target");
     const url = new URL(address);
     const local = url.hostname === "localhost" || url.hostname === "127.0.0.1" || url.hostname === "[::1]";
-    if ((url.protocol !== "https:" && !(local && url.protocol === "http:")) ||
+    if ((url.protocol !== "https:" && !(url.protocol === "http:" && (local || httpOrigins.has(url.origin)))) ||
         url.username || url.password || url.pathname !== "/" || url.search || url.hash) {
-      throw new Error("Node status targets must be HTTPS origins (or local HTTP for development)");
+      throw new Error("Node status targets must be HTTPS origins, loopback HTTP or explicitly trusted private HTTP origins");
     }
     targets.set(id, url.origin);
   }

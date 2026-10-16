@@ -8,6 +8,7 @@ const origin = "https://node.example.com";
 const servers: Server[] = [];
 
 afterEach(async () => {
+  vi.unstubAllEnvs();
   await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
 });
 
@@ -41,10 +42,22 @@ describe("topology status proxy", () => {
   it("accepts only explicit HTTPS targets and development loopback", () => {
     expect(parseTopologyTargets(JSON.stringify({ [nodeId]: origin })).get(nodeId)).toBe(origin);
     expect(parseTopologyTargets('{"1":"http://127.0.0.1:8080"}').get("1")).toBe("http://127.0.0.1:8080");
-    for (const target of ["http://node.example.com", "https://node.example.com/path", "https://user@node.example.com", "https://node.example.com?x=1"]) {
+    for (const target of ["http://node.example.com", "http://10.250.0.6:18080", "https://node.example.com/path", "https://user@node.example.com", "https://node.example.com?x=1"]) {
       expect(() => parseTopologyTargets(JSON.stringify({ [nodeId]: target }))).toThrow();
     }
     expect(() => parseTopologyTargets('{"0":"https://node.example.com"}')).toThrow();
+  });
+
+  it("requires an exact private HTTP origin opt-in and rejects public or non-origin exceptions", () => {
+    const address = "http://10.250.0.6:18080";
+    const targets = JSON.stringify({ [nodeId]: address });
+    expect(parseTopologyTargets(targets, JSON.stringify([address])).get(nodeId)).toBe(address);
+    expect(() => parseTopologyTargets(targets, '["http://10.250.0.6:18081"]')).toThrow();
+    for (const denied of ["http://43.163.98.139:18080", "http://169.254.169.254", "http://node.example.com",
+      "https://10.250.0.6", "http://10.250.0.6/path", "http://user@10.250.0.6", "http://10.250.0.6?x=1"]) {
+      expect(() => parseTopologyTargets(targets, JSON.stringify([denied]))).toThrow();
+    }
+    expect(() => parseTopologyTargets(targets, '{}')).toThrow();
   });
 
   it("forwards only bearer credentials to the configured origin and preserves int64 IDs", async () => {
@@ -97,6 +110,21 @@ describe("message probe proxy", () => {
     }));
   });
 
+  it("accepts the registered TUN node as a probe target without rounding its ID", async () => {
+    const target = "67853043149576892";
+    const address = "http://10.250.0.6:18080";
+    vi.stubEnv("TURNTF_NODE_STATUS_HTTP_ORIGINS", JSON.stringify([address]));
+    const outgoing = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(`{"node_id":${nodeId},"mesh":{}}`))
+      .mockResolvedValueOnce(new Response(`{"source_node_id":${nodeId},"target_node_id":${target},"trace_id":"${id}","status":"dispatched"}`, { status: 202 }));
+    const url = await serveProbe(outgoing, { [nodeId]: origin, [target]: address });
+    const response = await send(url, JSON.stringify({ target_node_id: target }));
+    expect(response.status).toBe(202);
+    expect(await response.text()).toContain(target);
+    expect(outgoing).toHaveBeenLastCalledWith(`${origin}/ops/probes`, expect.objectContaining({
+      body: `{"target_node_id":${target}}`, redirect: "manual",
+    }));
+  });
+
   it("never POSTs when source identity, authorization or target validation fails", async () => {
     const outgoing = vi.fn<typeof fetch>().mockResolvedValueOnce(new Response(`{"node_id":${other},"mesh":{}}`))
       .mockResolvedValueOnce(new Response(null, { status: 302, headers: { Location: "https://evil.example.com" } }));
@@ -140,6 +168,23 @@ describe("message trace proxy", () => {
     expect((await fetch(`${url}/not-a-trace`, { headers: { Authorization: "Bearer fixture" } })).status).toBe(400);
     expect((await fetch(`${url}/${traceId}`)).status).toBe(401);
     expect(outgoing).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads reached evidence from an explicitly trusted TUN origin and verifies its identity", async () => {
+    const target = "67853043149576892";
+    const address = "http://10.250.0.6:18080";
+    vi.stubEnv("TURNTF_NODE_STATUS_HTTP_ORIGINS", JSON.stringify([address]));
+    const outgoing = vi.fn<typeof fetch>().mockImplementation(async (url) => {
+      if (String(url).endsWith("/ops/status")) return new Response(`{"node_id":${target},"mesh":{}}`);
+      return new Response(`{"trace_id":"${traceId}","events":[{"trace_id":"${traceId}","node_id":${target},"stage":"probe_reached"}]}`);
+    });
+    const url = await serveTrace(outgoing, { [target]: address });
+    const response = await fetch(`${url}/${traceId}`, { headers: { Authorization: "Bearer fixture" } });
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('"stage":"probe_reached"');
+    expect(outgoing).toHaveBeenLastCalledWith(`${address}/ops/traces/${traceId}`, expect.objectContaining({
+      headers: { Authorization: "Bearer fixture" }, redirect: "manual",
+    }));
   });
 
   it("isolates unavailable nodes and rejects mismatched identity and authorization", async () => {
