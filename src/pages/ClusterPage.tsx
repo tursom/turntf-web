@@ -100,7 +100,7 @@ export function ClusterPage() {
               { title: "节点 ID", dataIndex: "nodeId", render: idToStr, width: 150 },
               { title: "节点位置", dataIndex: "isLocal", width: 100, render: (value: boolean) => value ? <Tag color="green">本地</Tag> : <Tag>远程</Tag> },
               { title: "配置 URL", dataIndex: "configuredUrl", ellipsis: true },
-              { title: "来源", dataIndex: "source", width: 140, render: (source: string) => ({ static: "静态配置", discovered: "动态发现", local: "本地" }[source] ?? (source ? `未知来源（${source}）` : "未提供")) },
+              { title: "来源", dataIndex: "source", width: 140, render: (source: string) => ({ static: "静态连接", discovered: "动态发现", inbound: "入站连接", mesh: "集群拓扑", local: "本地" }[source] ?? (source ? `未知来源（${source}）` : "未提供")) },
               { title: "操作", width: 180, render: (_, record) => (
                 <Button type="link" icon={<TeamOutlined />} onClick={() => {
                   setSelectedNodeId(idToStr(record.nodeId));

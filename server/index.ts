@@ -15,9 +15,9 @@ const config = loadConfig();
 
 const app = express();
 app.use(requestLogger);
-const topologyStatus = createTopologyStatusHandler(process.env.TURNTF_NODE_STATUS_URLS);
-const messageTrace = createMessageTraceHandler(process.env.TURNTF_NODE_STATUS_URLS);
-const messageProbe = createMessageProbeHandler(process.env.TURNTF_NODE_STATUS_URLS);
+const topologyStatus = createTopologyStatusHandler(config.backendUrl);
+const messageTrace = createMessageTraceHandler(config.backendUrl);
+const messageProbe = createMessageProbeHandler(config.backendUrl);
 app.get("/ui-api/topology/:nodeId", (req, res) => {
   void topologyStatus(req, res, req.params.nodeId);
 });

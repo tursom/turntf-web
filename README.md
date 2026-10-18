@@ -83,12 +83,10 @@ docker run -d \
 | `TURNTF_BACKEND_URL` | `http://localhost:8080` | turntf 后端地址，容器内需指向可访问的地址 |
 | `SERVER_PORT` | `3100` | Express 监听端口 |
 | `SERVER_HOST` | `0.0.0.0` | Express 监听地址，容器内保持 `0.0.0.0` |
-| `TURNTF_NODE_STATUS_URLS` | 未配置 | 可选的节点 ID 到可信 Web/运维入口的 JSON 映射，用于节点视角、探测和轨迹聚合 |
-| `TURNTF_NODE_STATUS_HTTP_ORIGINS` | 未配置 | 私网 HTTP 入口的精确 origin JSON 数组；仅用于部署者已确认经 TUN 等受保护网络传输的数字 IPv4 地址 |
 
-节点视角默认只包含当前入口。需要切换到其他节点时，在每个 Web 部署中配置其节点 ID 与可信入口，例如 `{"4096":"https://node-a.example.com","8192":"https://node-b.example.com"}`；开发时可使用 `http://127.0.0.1:<port>`。Web 仅向配置中的固定入口转发管理员 Bearer 令牌，不跟随重定向，并检查响应的节点身份；不要使用来自集群广播的 URL 或把未受信任的地址放入映射。未配置的节点会显示明确错误，远端不可用时不伪装成当前节点视角。
+集群监控只使用 `TURNTF_BACKEND_URL` 连接当前 core，成员和拓扑来自实际集群。已加入的节点均按内部可信成员处理；跨节点状态、指定源节点探测和轨迹聚合通过现有 mesh 查询，只有出站连接、没有独立 HTTP 入口的节点也会自动参与。扩容无需更新 Web 配置或重启 Web。
 
-通过加密 TUN 接入的节点可以提供仅监听 TUN 地址的 HTTP 运维入口。此时需同时在 `TURNTF_NODE_STATUS_URLS` 中登记节点，并在 `TURNTF_NODE_STATUS_HTTP_ORIGINS` 中明确加入相同 origin，例如 `["http://10.250.0.6:18080"]`。端口也属于信任范围；只有 RFC1918 数字 IPv4 地址可使用此例外，公网 IP、DNS 名称、URL 路径及重定向均不允许。HTTP 本身不加密，部署者必须保证令牌始终通过受保护的 TUN 网络传输，不能将该入口监听到公网。没有设置此数组时，私网 HTTP 仍被拒绝。
+管理员权限在当前入口 core 校验。远端不可达或尚未升级时返回明确错误，轨迹保留逐节点失败，不会用入口节点状态代替。core 需要支持 `/ops/nodes/{node_id}/status`、`/ops/nodes/{node_id}/probes` 和 `/ops/traces/{trace_id}/cluster`；升级时先更新 core，再更新 Web。原来的 `TURNTF_NODE_STATUS_URLS` 与 `TURNTF_NODE_STATUS_HTTP_ORIGINS` 已不再使用，可以从部署配置删除，独立的节点 HTTP 运维转发服务也不再需要。
 
 ### Docker Compose
 
