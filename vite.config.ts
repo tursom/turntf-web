@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import { createMessageProbeHandler, createMessageTraceHandler, createTopologyStatusHandler } from "./server/topologyStatus";
 
+const backendUrl = process.env.TURNTF_BACKEND_URL ?? "http://localhost:8080";
 const localSdkEntry = path.resolve(__dirname, "../../sdk/turntf-web-sdk/src/index.ts");
 const sdkAlias: Record<string, string> = process.env.TURNTF_USE_LOCAL_SDK === "1" && existsSync(localSdkEntry)
   ? { "@tursom/turntf-web-sdk": localSdkEntry }
@@ -13,9 +14,9 @@ export default defineConfig({
   plugins: [react(), {
     name: "topology-status-dev",
     configureServer(server) {
-      const topologyStatus = createTopologyStatusHandler(process.env.TURNTF_NODE_STATUS_URLS);
-      const messageTrace = createMessageTraceHandler(process.env.TURNTF_NODE_STATUS_URLS);
-      const messageProbe = createMessageProbeHandler(process.env.TURNTF_NODE_STATUS_URLS);
+      const topologyStatus = createTopologyStatusHandler(backendUrl);
+      const messageTrace = createMessageTraceHandler(backendUrl);
+      const messageProbe = createMessageProbeHandler(backendUrl);
       server.middlewares.use("/ui-api/topology/", (req, res) => {
         void topologyStatus(req, res, (req.url ?? "").split("?", 1)[0].replace(/^\//, ""));
       });
@@ -40,7 +41,7 @@ export default defineConfig({
     proxy: {
       // 开发模式下 /api 同时承载 HTTP 和 WebSocket 代理。
       "/api": {
-        target: "http://localhost:8080",
+        target: backendUrl,
         changeOrigin: true,
         ws: true,
         rewrite: (path) => path.replace(/^\/api/, ""),
